@@ -1,0 +1,4 @@
+SALE1001|Recyclable - Plastic|500.00|EcoPlast Industries Ltd.|35.00|17500.00|2026-10-30 14:00
+SALE1002|Recyclable - Paper & Cardboard|800.00|GreenPaper Mills|18.00|14400.00|2026-11-02 11:30
+SALE1003|Recyclable - Metal / Cans|300.00|Bengal Metal Recyclers|75.00|22500.00|2026-11-05 16:45
+SALE1004|Recyclable - Plastic|10.50|EcoPlast Industries Ltd.|35.00|367.50|2026-11-10 19:10

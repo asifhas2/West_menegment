@@ -1,0 +1,5 @@
+BIN101|Block A - Green Park Zone|Organic / Biodegradable|Normal
+BIN102|Block B - Commercial Market|Recyclable - Plastic|Normal
+BIN103|Block C - School & Library Area|Recyclable - Paper & Metal|Full
+BIN104|Block D - Healthcare Complex|Chemical & Hazardous|Normal
+BIN105|Block E - Residential Avenue 4|General & E-Waste|Normal

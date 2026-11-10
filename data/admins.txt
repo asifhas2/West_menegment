@@ -1,0 +1,4 @@
+ADM101|admin|System Administrator|01700000000|admin123|Super Admin|2026-10-01 10:00
+ADM102|manager|Operations Director|01711002200|admin123|Operations Director|2026-10-05 09:30
+ADM103|farhana@city.gov|Farhana Yasmin|01733445566|adminpass123|Operations Supervisor|2026-11-10 19:48
+ADM104|shoybe@gmail.com|shoybe|01810401378|1234|Operations Supervisor|2026-11-10 22:51

@@ -1,0 +1,4 @@
+COL101|Karim Ullah|karim@collector.com|01811223344|collector123|TRK-01|Available|99.00|14
+COL102|Hasan Mahmud|hasan@collector.com|01822334455|collector123|TRK-03|Available|64.00|8
+COL103|Tariq Islam|tariq@collector.com|01833445566|collector123|TRK-02|Available|42.00|5
+COL104|Rafiqul Islam|rafiq@collector.com|01855667788|pass1234|TRK-02|Available|0.00|0

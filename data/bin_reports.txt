@@ -1,0 +1,2 @@
+REP1001|USR1001|BIN103|Block C - School & Library Area|Bin Overflowing|Lid cannot close and cardboard is spilling on footpath|Under Review|2026-10-25 11:20
+REP1002|USR1001|BIN101|Near Central Park gate|Bin Overflowing / Excess Garbage|The bin is completely full and garbage is overflowing on the road|Pending Review|2026-11-07 19:37
