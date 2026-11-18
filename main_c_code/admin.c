@@ -200,10 +200,10 @@ void showAdminDashboard(const Admin* admin) {
             case 1:  manageRequestsUI(); break;
             case 2:  approveOrRejectRequestUI(); break;
             case 3:  assignCollectorAndTruckUI(); break;
-            // case 4:  routeDispatchUI(); break;
-            // case 5:  manageProcessingRecordsUI(); break;
-            // case 6:  recordRecyclableSaleUI(); break;
-            // case 7:  viewTransparencyTrailUI(); break;
+            case 4:  routeDispatchUI(); break;
+            case 5:  manageProcessingRecordsUI(); break;
+            case 6:  recordRecyclableSaleUI(); break;
+            case 7:  viewTransparencyTrailUI(); break;
             case 8:  manageUsersUI(); break;
             case 9:  manageBinsUI(); break;
             case 10: manageCollectorsUI(); break;
@@ -490,6 +490,242 @@ void manageUsersUI(void) {
         }
     }
 }
+
+void routeDispatchUI(void) {
+    clearScreen();
+    printHeader("COLLECTION ROUTE GENERATION & DISPATCH");
+
+    Collector collectors[MAX_COLLECTORS];
+    int colCount = loadCollectors(collectors, MAX_COLLECTORS);
+
+    printf(" Select an active collector to generate/review their route:\n");
+    for (int i = 0; i < colCount; i++) {
+        printf("   [%d] %s (ID: %s) - Vehicle: %s\n",
+               i + 1, collectors[i].name, collectors[i].id, collectors[i].assigned_truck);
+    }
+    int choice = getInt(" Select Collector [1 to count]: ", 1, colCount);
+    Collector* col = &collectors[choice - 1];
+
+    clearScreen();
+    printHeader("ROUTE DISPATCH MANIFEST");
+    printf(" Assigned Officer: %s (%s) | Truck: %s\n\n", col->name, col->id, col->assigned_truck);
+
+    static WasteRequest reqs[MAX_REQUESTS];
+    int count = loadRequests(reqs, MAX_REQUESTS);
+    int stopNum = 1;
+    float totalEstimatedWeight = 0.0f;
+
+    for (int i = 0; i < count; i++) {
+        if (strstr(reqs[i].assigned_collector, col->id) != NULL &&
+            (reqs[i].status == REQ_STATUS_ASSIGNED || reqs[i].status == REQ_STATUS_IN_PROGRESS)) {
+            printf(" [STOP %d] Task: %s\n", stopNum++, reqs[i].id);
+            printf("   * Location      : %s\n", reqs[i].location);
+            printf("   * Smart Bin Ref : %s\n", reqs[i].bin_id);
+            printf("   * Waste Type    : %s\n", reqs[i].waste_type);
+            printf("   * Est Weight    : %.2f kg\n", reqs[i].estimated_weight);
+            printf("   * Preferred Slot: %s\n", reqs[i].preferred_slot);
+            printDivider('-', 65);
+            totalEstimatedWeight += reqs[i].estimated_weight;
+        }
+    }
+
+    if (stopNum == 1) {
+        printf(" No active route stops scheduled for this collector.\n");
+    } else {
+        printf(" Total Stops: %d | Total Estimated Payload: %.2f kg\n", stopNum - 1, totalEstimatedWeight);
+        printf("[DISPATCH] Route manifests are automatically synced to the collector's mobile portal.\n");
+    }
+
+    pausePrompt();
+}
+
+/* ==================== 5. PROCESSING & CHEMICAL DISPOSAL RECORDS ==================== */
+
+void manageProcessingRecordsUI(void) {
+    clearScreen();
+    printHeader("RECORD WASTE PROCESSING, RECYCLING & CHEMICAL SAFE DISPOSAL");
+    printf(" Process waste that has been physically collected from citizens.\n\n");
+
+    static WasteRequest reqs[MAX_REQUESTS];
+    int count = loadRequests(reqs, MAX_REQUESTS);
+    int collectedCount = 0;
+
+    printf("%-10s | %-24s | %-10s | %-16s\n",
+           "Req ID", "Waste Category", "Actual Wt", "Collection Date");
+    printDivider('-', 70);
+
+    for (int i = 0; i < count; i++) {
+        if (reqs[i].status == REQ_STATUS_COLLECTED) {
+            printf("%-10s | %-24s | %-6.2f kg  | %-16s\n",
+                   reqs[i].id, reqs[i].waste_type, reqs[i].actual_weight, reqs[i].completed_at);
+            collectedCount++;
+        }
+    }
+
+    if (collectedCount == 0) {
+        printf(" No collected batches currently awaiting final processing outcome.\n");
+        pausePrompt();
+        return;
+    }
+
+    printDivider('=', 70);
+    char reqId[32];
+    getString(" Enter Request ID to record final processing: ", reqId, sizeof(reqId), false);
+
+    WasteRequest* req = findRequestById(reqs, count, reqId);
+    if (!req || req->status != REQ_STATUS_COLLECTED) {
+        printf("[!] Invalid Request ID or request is not in 'Collected' status.\n");
+        pausePrompt();
+        return;
+    }
+
+    printf("\n Selected Batch: %s (%s, %.2f kg)\n", req->id, req->waste_type, req->actual_weight);
+
+    /* Check if Chemical / Hazardous Waste - Special Handling */
+    if (strstr(req->waste_type, "Hazardous") || strstr(req->waste_type, "Chemical")) {
+        printf("\n [!] CHEMICAL / HAZARDOUS WASTE DETECTED [!]\n");
+        printf(" In compliance with environmental safety regulations, chemical waste must NOT\n");
+        printf(" be treated like ordinary recyclable materials. It requires a certified handover.\n\n");
+
+        char facility[64];
+        char manifestId[32];
+        char method[64];
+
+        getString(" Authorized Chemical Disposal Facility: ", facility, sizeof(facility), false);
+        getString(" Safe Handover Manifest / Permit Number: ", manifestId, sizeof(manifestId), false);
+        getString(" Treatment Method (e.g. High-Temp Incineration / Neutralization): ", method, sizeof(method), false);
+
+        snprintf(req->final_outcome, sizeof(req->final_outcome),
+                 "Handed over to %s (Permit: %s) for safe %s", facility, manifestId, method);
+    } else {
+        /* Ordinary Recyclable or Compostable Waste */
+        printf("\n Processing Options:\n");
+        printf("   [1] Recycled into raw manufacturing pellets / flake at GreenTech\n");
+        printf("   [2] Processed & pulped into recycled cardboard at Paper Mills\n");
+        printf("   [3] Smelted and purified at Certified Metal Foundry\n");
+        printf("   [4] Composted into bio-fertilizer at Organic Composting Facility\n");
+        printf("   [5] Enter Custom Processing Outcome\n");
+
+        int pChoice = getInt(" Select Option [1-5]: ", 1, 5);
+        if (pChoice == 1) strcpy(req->final_outcome, "Recycled into polymer pellets at EcoPlast Plant");
+        else if (pChoice == 2) strcpy(req->final_outcome, "Pulped into recycled paper products at GreenPaper Mill");
+        else if (pChoice == 3) strcpy(req->final_outcome, "Smelted and repurposed at National Metal Foundries");
+        else if (pChoice == 4) strcpy(req->final_outcome, "Composted into organic bio-fertilizer for municipal parks");
+        else {
+            getString(" Enter Detailed Final Outcome Description: ", req->final_outcome, sizeof(req->final_outcome), false);
+        }
+    }
+
+    req->status = REQ_STATUS_FINAL_OUTCOME;
+    getCurrentTimestamp(req->completed_at, sizeof(req->completed_at));
+
+    if (updateRequest(req)) {
+        printf("\n[SUCCESS] Final processing record logged for %s!\n", req->id);
+        printf("Transparency Trail: %s\n", req->final_outcome);
+    } else {
+        printf("\n[ERROR] Failed to save processing outcome.\n");
+    }
+
+    pausePrompt();
+}
+
+/* ==================== 6. RECYCLABLE SALES RECORD ==================== */
+
+void recordRecyclableSaleUI(void) {
+    clearScreen();
+    printHeader("RECORD RECYCLABLE MATERIAL COMMERCIAL SALE");
+    printf(" Log bulk sales of recovered recyclables to authorized manufacturing partners.\n\n");
+
+    RecyclableSale sale;
+    memset(&sale, 0, sizeof(sale));
+
+    generateNextSaleId(sale.id);
+    printf(" Transaction Sale ID: %s\n\n", sale.id);
+
+    printf(" Material Category Sold:\n");
+    printf("   [1] Recyclable - Plastic (PET / HDPE)\n");
+    printf("   [2] Recyclable - Paper & Cardboard\n");
+    printf("   [3] Recyclable - Metal / Aluminum Cans\n");
+    printf("   [4] Recyclable - Glass\n");
+    int mChoice = getInt(" Select Material [1-4]: ", 1, 4);
+
+    if (mChoice == 1) strcpy(sale.material_type, "Recyclable - Plastic");
+    else if (mChoice == 2) strcpy(sale.material_type, "Recyclable - Paper & Cardboard");
+    else if (mChoice == 3) strcpy(sale.material_type, "Recyclable - Metal / Cans");
+    else strcpy(sale.material_type, "Recyclable - Glass");
+
+    sale.weight_kg = getFloat(" Bulk Quantity Sold (kg): ", 1.0f, 100000.0f);
+    getString(" Commercial Buyer / Recycling Company: ", sale.buyer_name, sizeof(sale.buyer_name), false);
+    sale.rate_per_kg = getFloat(" Sale Rate per kg (Currency): ", 0.5f, 1000.0f);
+    sale.total_amount = sale.weight_kg * sale.rate_per_kg;
+    getCurrentTimestamp(sale.sale_date, sizeof(sale.sale_date));
+
+    printf("\n Commercial Transaction Summary:\n");
+    printf("   Sale ID      : %s\n", sale.id);
+    printf("   Material     : %s\n", sale.material_type);
+    printf("   Total Weight : %.2f kg\n", sale.weight_kg);
+    printf("   Buyer        : %s\n", sale.buyer_name);
+    printf("   Rate / kg    : $%.2f\n", sale.rate_per_kg);
+    printf("   Total Value  : $%.2f\n", sale.total_amount);
+    printDivider('-', 60);
+
+    char confirm[16];
+    getString(" Confirm and save commercial transaction? (Y/N): ", confirm, sizeof(confirm), false);
+    if (confirm[0] == 'Y' || confirm[0] == 'y') {
+        if (addSale(&sale)) {
+            printf("\n[SUCCESS] Sale transaction %s recorded successfully!\n", sale.id);
+        } else {
+            printf("\n[ERROR] Failed to save sale transaction.\n");
+        }
+    } else {
+        printf("\n[INFO] Sale entry cancelled.\n");
+    }
+
+    pausePrompt();
+}
+
+/* ==================== 7. TRANSPARENCY TRAIL ==================== */
+
+void viewTransparencyTrailUI(void) {
+    clearScreen();
+    printHeader("END-TO-END TRANSPARENCY TRAIL AUDIT");
+    printf(" Trace waste from citizen source -> collection -> processing -> final destination.\n\n");
+
+    char reqId[32];
+    getString(" Enter Request ID to audit (or press ENTER to view all final records): ", reqId, sizeof(reqId), true);
+
+    static WasteRequest reqs[MAX_REQUESTS];
+    int count = loadRequests(reqs, MAX_REQUESTS);
+    int shown = 0;
+
+    for (int i = 0; i < count; i++) {
+        if (strlen(reqId) > 0 && strcmp(reqs[i].id, reqId) != 0) {
+            continue;
+        }
+
+        if (reqs[i].status == REQ_STATUS_FINAL_OUTCOME || strlen(reqId) > 0) {
+            printf(" [BATCH AUDIT %s]\n", reqs[i].id);
+            printf("   1. SOURCE GENERATION :\n");
+            printf("      * Citizen ID : %s | Pickup Spot: %s\n", reqs[i].user_id, reqs[i].location);
+            printf("      * Waste Type : %s | Est Wt: %.2f kg\n", reqs[i].waste_type, reqs[i].estimated_weight);
+            printf("   2. COLLECTION STAGE  :\n");
+            printf("      * Collector  : %s | Truck: %s\n", reqs[i].assigned_collector, reqs[i].assigned_truck);
+            printf("      * Actual Wt  : %.2f kg | Points: %d pts\n", reqs[i].actual_weight, reqs[i].points_awarded);
+            printf("   3. FINAL OUTCOME     :\n");
+            printf("      * Destination: %s\n", reqs[i].final_outcome);
+            printf("      * Finalized  : %s\n", reqs[i].completed_at);
+            printDivider('-', 75);
+            shown++;
+        }
+    }
+
+    if (shown == 0) {
+        printf(" No matching transparency records found.\n");
+    }
+
+    pausePrompt();
+}
+
 
 /* ==================== 9. MANAGE BINS ==================== */
 
