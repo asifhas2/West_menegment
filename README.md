@@ -29,16 +29,19 @@ The system connects three primary municipal actors through persistent file stora
 - **Performance Summary**: Total collections completed and vehicle capacity utilization.
 
 ### 3. Municipal Administrator Portal
-- **Real-Time Operations Dashboard**: High-level metrics on citizens, collectors, fleet, and pending batches.
+- **Real-Time Operations Dashboard**: Displays logged-in Admin Points, Total Sales Revenue, Warehouse status (`Collected`, `Recycled`, `Finalized`), and system metrics.
 - **Request Management**: Review, search, approve, or reject incoming collection requests.
 - **Resource Assignment**: Assign available field collectors and fleet vehicles to approved requests.
 - **Route Manifest Generation**: Create and dispatch daily collection routes.
-- **Waste Processing Outcomes**: Record certified recycling outcomes or authorized chemical waste treatment and manifests.
-- **Commercial Recyclable Sales**: Log bulk material sales to recycling and industrial partners.
-- **End-to-End Transparency Trail**: Full audit trail from citizen origin to final product/disposal.
+- **Admin Warehouse Pipeline (Collected ➔ Recycle ➔ Sell ➔ Admin Points)**:
+  1. **Automatic Collector Handoff**: When a collector finishes a pickup, the verified waste batch (`BATxxxx`) is automatically logged into the Admin Warehouse (`data/warehouse.txt`).
+  2. **Step 1 – Recycle / Process Waste**: Admin processes collected batches into sellable recycled materials (or certifies safe hazardous chemical disposal).
+  3. **Step 2 – Sell Recycled Waste & Claim Admin Points**: Admin selects recycled batches from warehouse stock, sells them to commercial buyers, updates the citizen's transparency trail, and automatically receives **Admin Points & Sales Revenue** in the Admin Portal.
+  4. **Warehouse Inventory & Points Ledger**: Full audit of all batches across stages along with Admin Points & Revenue totals.
+- **End-to-End Transparency Trail**: Full audit trail from citizen origin to final recycling & commercial sale.
 - **Entity Management**: CRUD operations for citizens, public smart bins, collectors, and trucks.
 - **Incident Management**: Review and resolve problem reports from both citizens and collectors.
-- **Statistical Analytics & Reports**: Material volume breakdown, rewards ledger, collector rankings, and fleet load reports.
+- **Statistical Analytics & Reports**: Material volume breakdown, citizen rewards ledger, collector rankings, fleet load reports, and Admin Points & Sales Revenue report.
 
 ---
 
@@ -121,5 +124,6 @@ West_menegment_v3/
     ├── rewards.txt            # Reward points transaction ledger
     ├── sales.txt              # Commercial recyclable sales
     ├── trucks.txt             # Municipal fleet database
-    └── users.txt              # Registered citizen accounts
+    ├── users.txt              # Registered citizen accounts
+    └── warehouse.txt          # Admin warehouse inventory (Collected -> Recycled -> Sold)
 ```

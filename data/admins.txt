@@ -1,4 +1,4 @@
-ADM102|manager|Operations Director|01711002200|admin123|Operations Director|2026-10-05 09:30
-ADM103|farhana@city.gov|Farhana Yasmin|01733445566|adminpass123|Operations Supervisor|2026-11-10 19:48
-ADM104|shoybe@gmail.com|shoybe|01810401378|1234|Operations Supervisor|2026-11-10 22:51
-ADM105|shoyeb6004@gmail.com|Md Shoybe hasan|0198888922|1234|Operations Supervisor|2026-11-17 10:42
+ADM102|manager|Operations Director|01711002200|admin123|Operations Director|2026-10-05 09:30|0|0.00
+ADM103|farhana@city.gov|Farhana Yasmin|01733445566|adminpass123|Operations Supervisor|2026-11-10 19:48|0|0.00
+ADM104|shoybe@gmail.com|shoybe|01810401378|1234|Operations Supervisor|2026-11-10 22:51|0|0.00
+ADM105|shoyeb6004@gmail.com|Md Shoybe hasan|0198888922|1234|Operations Supervisor|2026-11-17 10:42|310|600.00

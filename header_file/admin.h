@@ -11,7 +11,7 @@ bool handleAdminLogin(Admin* loggedInAdmin);
 bool handleAdminRegistration(void);
 
 /* Admin dashboard & core operations */
-void showAdminDashboard(const Admin* admin);
+void showAdminDashboard(Admin* admin);
 void manageRequestsUI(void);
 void approveOrRejectRequestUI(void);
 void assignCollectorAndTruckUI(void);
@@ -20,8 +20,9 @@ void manageBinsUI(void);
 void manageCollectorsUI(void);
 void manageTrucksUI(void);
 void routeDispatchUI(void);
-void manageProcessingRecordsUI(void);
-void recordRecyclableSaleUI(void);
+void manageProcessingRecordsUI(Admin* admin);
+void recordRecyclableSaleUI(Admin* admin);
+void viewAdminWarehouseUI(const Admin* admin);
 void viewTransparencyTrailUI(void);
 void manageProblemReportsUI(void);
 void generateSystemReportsUI(void);

@@ -81,4 +81,13 @@ Admin* findAdminByUsernameOrEmail(Admin admins[], int count, const char* identif
 Admin* findAdminById(Admin admins[], int count, const char* id);
 void generateNextAdminId(char* out_id);
 
+/* Admin warehouse inventory operations (Collected -> Recycled -> Sold) */
+int loadWarehouseBatches(WarehouseBatch batches[], int max_count);
+bool saveWarehouseBatches(const WarehouseBatch batches[], int count);
+bool addWarehouseBatch(const WarehouseBatch* batch);
+bool updateWarehouseBatch(const WarehouseBatch* batch);
+WarehouseBatch* findWarehouseBatchByIdOrReq(WarehouseBatch batches[], int count, const char* identifier);
+void generateNextBatchId(char* out_id);
+void syncCollectedRequestsToWarehouse(void);
+
 #endif /* DATA_H */

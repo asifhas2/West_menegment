@@ -19,6 +19,7 @@
 #define MAX_TRUCKS 50
 #define MAX_SALES 500
 #define MAX_ADMINS 50
+#define MAX_WAREHOUSE 1000
 
 /* Data file paths for system persistence */
 #define FILE_USERS "data/users.txt"
@@ -31,5 +32,6 @@
 #define FILE_TRUCKS "data/trucks.txt"
 #define FILE_SALES "data/sales.txt"
 #define FILE_ADMINS "data/admins.txt"
+#define FILE_WAREHOUSE "data/warehouse.txt"
 
 #endif /* COMMON_H */

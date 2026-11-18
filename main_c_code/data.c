@@ -139,8 +139,16 @@ bool initDataFiles(void) {
     if (!fileExists(FILE_ADMINS)) {
         FILE* fp = fopen(FILE_ADMINS, "w");
         if (fp) {
-            fprintf(fp, "ADM101|admin|System Administrator|01700000000|admin123|Super Admin|2026-10-01 10:00\n");
-            fprintf(fp, "ADM102|manager|Operations Director|01711002200|admin123|Operations Director|2026-10-05 09:30\n");
+            fprintf(fp, "ADM101|admin|System Administrator|01700000000|admin123|Super Admin|2026-10-01 10:00|0|0.00\n");
+            fprintf(fp, "ADM102|manager|Operations Director|01711002200|admin123|Operations Director|2026-10-05 09:30|0|0.00\n");
+            fclose(fp);
+        }
+    }
+
+    /* 11. Admin Warehouse Inventory (Collected -> Recycled -> Sold) */
+    if (!fileExists(FILE_WAREHOUSE)) {
+        FILE* fp = fopen(FILE_WAREHOUSE, "w");
+        if (fp) {
             fclose(fp);
         }
     }
@@ -1019,6 +1027,13 @@ int loadSales(RecyclableSale sales[], int max_count) {
             sales[count].rate_per_kg = strtof(f[4], NULL);
             sales[count].total_amount = strtof(f[5], NULL);
             strncpy(sales[count].sale_date, f[6], sizeof(sales[count].sale_date) - 1);
+            if (num_fields >= 9) {
+                strncpy(sales[count].batch_id, f[7], sizeof(sales[count].batch_id) - 1);
+                strncpy(sales[count].admin_id, f[8], sizeof(sales[count].admin_id) - 1);
+            } else {
+                strcpy(sales[count].batch_id, "N/A");
+                strcpy(sales[count].admin_id, "N/A");
+            }
             count++;
         }
     }
@@ -1030,20 +1045,22 @@ bool addSale(const RecyclableSale* sale) {
     FILE* fp = fopen(FILE_SALES, "a");
     if (!fp) return false;
 
-    fprintf(fp, "%s|%s|%.2f|%s|%.2f|%.2f|%s\n",
+    fprintf(fp, "%s|%s|%.2f|%s|%.2f|%.2f|%s|%s|%s\n",
             sale->id,
             sale->material_type,
             sale->weight_kg,
             sale->buyer_name,
             sale->rate_per_kg,
             sale->total_amount,
-            sale->sale_date);
+            sale->sale_date,
+            strlen(sale->batch_id) > 0 ? sale->batch_id : "N/A",
+            strlen(sale->admin_id) > 0 ? sale->admin_id : "N/A");
     fclose(fp);
     return true;
 }
 
 void generateNextSaleId(char* out_id) {
-    RecyclableSale sales[MAX_SALES];
+    static RecyclableSale sales[MAX_SALES];
     int count = loadSales(sales, MAX_SALES);
     int max_num = 1000;
     for (int i = 0; i < count; i++) {
@@ -1067,9 +1084,10 @@ int loadAdmins(Admin admins[], int max_count) {
         trimString(line);
         if (strlen(line) == 0) continue;
 
-        char* f[10];
-        int num_fields = splitLine(line, f, 10, '|');
+        char* f[12];
+        int num_fields = splitLine(line, f, 12, '|');
         if (num_fields >= 7) {
+            memset(&admins[count], 0, sizeof(Admin));
             strncpy(admins[count].id, f[0], sizeof(admins[count].id) - 1);
             strncpy(admins[count].username, f[1], sizeof(admins[count].username) - 1);
             strncpy(admins[count].name, f[2], sizeof(admins[count].name) - 1);
@@ -1077,6 +1095,13 @@ int loadAdmins(Admin admins[], int max_count) {
             strncpy(admins[count].password, f[4], sizeof(admins[count].password) - 1);
             strncpy(admins[count].role, f[5], sizeof(admins[count].role) - 1);
             strncpy(admins[count].created_at, f[6], sizeof(admins[count].created_at) - 1);
+            if (num_fields >= 9) {
+                admins[count].admin_points = atoi(f[7]);
+                admins[count].total_revenue = strtof(f[8], NULL);
+            } else {
+                admins[count].admin_points = 0;
+                admins[count].total_revenue = 0.0f;
+            }
             count++;
         }
     }
@@ -1089,14 +1114,16 @@ bool saveAdmins(const Admin admins[], int count) {
     if (!fp) return false;
 
     for (int i = 0; i < count; i++) {
-        fprintf(fp, "%s|%s|%s|%s|%s|%s|%s\n",
+        fprintf(fp, "%s|%s|%s|%s|%s|%s|%s|%d|%.2f\n",
                 admins[i].id,
                 admins[i].username,
                 admins[i].name,
                 admins[i].phone,
                 admins[i].password,
                 admins[i].role,
-                admins[i].created_at);
+                admins[i].created_at,
+                admins[i].admin_points,
+                admins[i].total_revenue);
     }
     fclose(fp);
     return true;
@@ -1106,14 +1133,16 @@ bool addAdmin(const Admin* admin) {
     FILE* fp = fopen(FILE_ADMINS, "a");
     if (!fp) return false;
 
-    fprintf(fp, "%s|%s|%s|%s|%s|%s|%s\n",
+    fprintf(fp, "%s|%s|%s|%s|%s|%s|%s|%d|%.2f\n",
             admin->id,
             admin->username,
             admin->name,
             admin->phone,
             admin->password,
             admin->role,
-            admin->created_at);
+            admin->created_at,
+            admin->admin_points,
+            admin->total_revenue);
     fclose(fp);
     return true;
 }
@@ -1164,4 +1193,161 @@ void generateNextAdminId(char* out_id) {
         }
     }
     sprintf(out_id, "ADM%d", max_num + 1);
+}
+
+/* ==================== ADMIN WAREHOUSE INVENTORY OPERATIONS ==================== */
+
+int loadWarehouseBatches(WarehouseBatch batches[], int max_count) {
+    FILE* fp = fopen(FILE_WAREHOUSE, "r");
+    if (!fp) return 0;
+
+    char line[1024];
+    int count = 0;
+    while (fgets(line, sizeof(line), fp) && count < max_count) {
+        trimString(line);
+        if (strlen(line) == 0) continue;
+
+        char* f[15];
+        int num_fields = splitLine(line, f, 15, '|');
+        if (num_fields >= 12) {
+            memset(&batches[count], 0, sizeof(WarehouseBatch));
+            strncpy(batches[count].batch_id, f[0], sizeof(batches[count].batch_id) - 1);
+            strncpy(batches[count].request_id, f[1], sizeof(batches[count].request_id) - 1);
+            strncpy(batches[count].collector_id, f[2], sizeof(batches[count].collector_id) - 1);
+            strncpy(batches[count].waste_type, f[3], sizeof(batches[count].waste_type) - 1);
+            batches[count].weight_kg = strtof(f[4], NULL);
+            strncpy(batches[count].stage, f[5], sizeof(batches[count].stage) - 1);
+            strncpy(batches[count].recycle_details, f[6], sizeof(batches[count].recycle_details) - 1);
+            strncpy(batches[count].sale_id, f[7], sizeof(batches[count].sale_id) - 1);
+            batches[count].sale_amount = strtof(f[8], NULL);
+            batches[count].admin_points_earned = atoi(f[9]);
+            strncpy(batches[count].processed_by, f[10], sizeof(batches[count].processed_by) - 1);
+            strncpy(batches[count].updated_at, f[11], sizeof(batches[count].updated_at) - 1);
+            count++;
+        }
+    }
+    fclose(fp);
+    return count;
+}
+
+bool saveWarehouseBatches(const WarehouseBatch batches[], int count) {
+    FILE* fp = fopen(FILE_WAREHOUSE, "w");
+    if (!fp) return false;
+
+    for (int i = 0; i < count; i++) {
+        fprintf(fp, "%s|%s|%s|%s|%.2f|%s|%s|%s|%.2f|%d|%s|%s\n",
+                batches[i].batch_id,
+                batches[i].request_id,
+                batches[i].collector_id,
+                batches[i].waste_type,
+                batches[i].weight_kg,
+                batches[i].stage,
+                batches[i].recycle_details,
+                batches[i].sale_id,
+                batches[i].sale_amount,
+                batches[i].admin_points_earned,
+                batches[i].processed_by,
+                batches[i].updated_at);
+    }
+    fclose(fp);
+    return true;
+}
+
+bool addWarehouseBatch(const WarehouseBatch* batch) {
+    FILE* fp = fopen(FILE_WAREHOUSE, "a");
+    if (!fp) return false;
+
+    fprintf(fp, "%s|%s|%s|%s|%.2f|%s|%s|%s|%.2f|%d|%s|%s\n",
+            batch->batch_id,
+            batch->request_id,
+            batch->collector_id,
+            batch->waste_type,
+            batch->weight_kg,
+            batch->stage,
+            batch->recycle_details,
+            batch->sale_id,
+            batch->sale_amount,
+            batch->admin_points_earned,
+            batch->processed_by,
+            batch->updated_at);
+    fclose(fp);
+    return true;
+}
+
+bool updateWarehouseBatch(const WarehouseBatch* batch) {
+    static WarehouseBatch batches[MAX_WAREHOUSE];
+    int count = loadWarehouseBatches(batches, MAX_WAREHOUSE);
+    bool found = false;
+    for (int i = 0; i < count; i++) {
+        if (strcmp(batches[i].batch_id, batch->batch_id) == 0) {
+            batches[i] = *batch;
+            found = true;
+            break;
+        }
+    }
+    if (found) {
+        return saveWarehouseBatches(batches, count);
+    }
+    return false;
+}
+
+WarehouseBatch* findWarehouseBatchByIdOrReq(WarehouseBatch batches[], int count, const char* identifier) {
+    for (int i = 0; i < count; i++) {
+        if (strcmp(batches[i].batch_id, identifier) == 0 ||
+            strcmp(batches[i].request_id, identifier) == 0) {
+            return &batches[i];
+        }
+    }
+    return NULL;
+}
+
+void generateNextBatchId(char* out_id) {
+    static WarehouseBatch batches[MAX_WAREHOUSE];
+    int count = loadWarehouseBatches(batches, MAX_WAREHOUSE);
+    int max_num = 1000;
+    for (int i = 0; i < count; i++) {
+        if (strncmp(batches[i].batch_id, "BAT", 3) == 0) {
+            int num = atoi(batches[i].batch_id + 3);
+            if (num > max_num) max_num = num;
+        }
+    }
+    sprintf(out_id, "BAT%d", max_num + 1);
+}
+
+/* Automatically create warehouse records for any collected requests not yet tracked */
+void syncCollectedRequestsToWarehouse(void) {
+    static WasteRequest reqs[MAX_REQUESTS];
+    static WarehouseBatch batches[MAX_WAREHOUSE];
+
+    int reqCount = loadRequests(reqs, MAX_REQUESTS);
+    int batchCount = loadWarehouseBatches(batches, MAX_WAREHOUSE);
+
+    for (int i = 0; i < reqCount; i++) {
+        if (reqs[i].status == REQ_STATUS_COLLECTED) {
+            if (!findWarehouseBatchByIdOrReq(batches, batchCount, reqs[i].id)) {
+                WarehouseBatch nb;
+                memset(&nb, 0, sizeof(nb));
+                generateNextBatchId(nb.batch_id);
+                strncpy(nb.request_id, reqs[i].id, sizeof(nb.request_id) - 1);
+                strncpy(nb.collector_id, reqs[i].assigned_collector, sizeof(nb.collector_id) - 1);
+                /* Keep short collector ID if formatted like "COL101 (Name)" */
+                char* space = strchr(nb.collector_id, ' ');
+                if (space) *space = '\0';
+                strncpy(nb.waste_type, reqs[i].waste_type, sizeof(nb.waste_type) - 1);
+                nb.weight_kg = reqs[i].actual_weight;
+                strcpy(nb.stage, "Collected");
+                strcpy(nb.recycle_details, "Received from collector - Awaiting recycling");
+                strcpy(nb.sale_id, "N/A");
+                nb.sale_amount = 0.0f;
+                nb.admin_points_earned = 0;
+                strcpy(nb.processed_by, "Pending");
+                getCurrentTimestamp(nb.updated_at, sizeof(nb.updated_at));
+
+                addWarehouseBatch(&nb);
+                if (batchCount < MAX_WAREHOUSE) {
+                    batches[batchCount++] = nb;
+                }
+            }
+        }
+    }
 }

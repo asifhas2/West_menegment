@@ -139,22 +139,54 @@ bool handleAdminLogin(Admin* loggedInAdmin) {
     return true;
 }
 
+/* Helper to calculate Admin Portal points earned after recycling and selling a batch */
+static int calculateAdminSalePoints(const char* waste_type, float weight_kg, float total_amount) {
+    int basePerKg = 8;
+    if (strstr(waste_type, "Plastic") || strstr(waste_type, "Metal") || strstr(waste_type, "E-Waste")) {
+        basePerKg = 10;
+    } else if (strstr(waste_type, "Organic")) {
+        basePerKg = 5;
+    }
+    int weightPoints = (int)(weight_kg * (float)basePerKg);
+    int revenueBonus = (int)(total_amount / 10.0f);
+    return weightPoints + revenueBonus;
+}
+
 /* ==================== ADMIN DASHBOARD ==================== */
 
-void showAdminDashboard(const Admin* admin) {
+void showAdminDashboard(Admin* admin) {
     while (1) {
+        /* Refresh admin profile from disk so points and revenue stay current */
+        static Admin adminList[MAX_ADMINS];
+        int adminCount = loadAdmins(adminList, MAX_ADMINS);
+        Admin* freshAdmin = findAdminById(adminList, adminCount, admin->id);
+        if (freshAdmin) {
+            *admin = *freshAdmin;
+        }
+
+        /* Sync any newly collected requests into the Admin Warehouse */
+        syncCollectedRequestsToWarehouse();
+
         /* Gather quick dashboard metrics */
-        User users[MAX_USERS];
+        static User users[MAX_USERS];
         int userCount = loadUsers(users, MAX_USERS);
 
         static WasteRequest reqs[MAX_REQUESTS];
         int reqCount = loadRequests(reqs, MAX_REQUESTS);
-        int pendingReqs = 0, approvedReqs = 0, collectedReqs = 0;
+        int pendingReqs = 0, approvedReqs = 0;
 
         for (int i = 0; i < reqCount; i++) {
             if (reqs[i].status == REQ_STATUS_PENDING) pendingReqs++;
             else if (reqs[i].status == REQ_STATUS_APPROVED) approvedReqs++;
-            else if (reqs[i].status == REQ_STATUS_COLLECTED) collectedReqs++;
+        }
+
+        static WarehouseBatch batches[MAX_WAREHOUSE];
+        int batchCount = loadWarehouseBatches(batches, MAX_WAREHOUSE);
+        int toRecycleCount = 0, readyToSellCount = 0, completedBatchCount = 0;
+        for (int i = 0; i < batchCount; i++) {
+            if (strcmp(batches[i].stage, "Collected") == 0) toRecycleCount++;
+            else if (strcmp(batches[i].stage, "Recycled") == 0) readyToSellCount++;
+            else completedBatchCount++;
         }
 
         Collector collectors[MAX_COLLECTORS];
@@ -163,7 +195,7 @@ void showAdminDashboard(const Admin* admin) {
         Truck trucks[MAX_TRUCKS];
         int truckCount = loadTrucks(trucks, MAX_TRUCKS);
 
-        BinProblemReport bReports[MAX_BIN_REPORTS];
+        static BinProblemReport bReports[MAX_BIN_REPORTS];
         int bRepCount = loadBinReports(bReports, MAX_BIN_REPORTS);
         int openBinReports = 0;
         for (int i = 0; i < bRepCount; i++) {
@@ -172,45 +204,51 @@ void showAdminDashboard(const Admin* admin) {
 
         clearScreen();
         printHeader("MUNICIPAL OPERATIONS DASHBOARD");
-        printf(" Logged In: %s (ID: %s) | Role: %s\n", admin->name, admin->id, admin->role);
-        printf(" Overview : %d Citizens | %d Collectors | %d Trucks | %d Open Reports\n",
+        printf(" Logged In   : %s (ID: %s) | Role: %s\n", admin->name, admin->id, admin->role);
+        printf(" Admin Wallet: %d Admin Points | Total Sales Revenue: $%.2f\n",
+               admin->admin_points, admin->total_revenue);
+        printf(" Warehouse   : %d Collected (To Recycle) | %d Recycled (Ready to Sell) | %d Finalized\n",
+               toRecycleCount, readyToSellCount, completedBatchCount);
+        printf(" Overview    : %d Citizens | %d Collectors | %d Trucks | %d Open Reports\n",
                userCount, colCount, truckCount, openBinReports);
-        printf(" Requests : %d Pending Review | %d Approved/Unassigned | %d Collected Ready for Processing\n",
-               pendingReqs, approvedReqs, collectedReqs);
-        printDivider('=', 72);
+        printf(" Requests    : %d Pending Review | %d Approved/Unassigned\n",
+               pendingReqs, approvedReqs);
+        printDivider('=', 74);
         printf(" Core Management Operations:\n");
         printf("   [1]  View & Search All Waste Requests\n");
         printf("   [2]  Approve or Reject Pending Requests\n");
         printf("   [3]  Assign Collector & Truck to Approved Requests\n");
         printf("   [4]  Generate Collection Route & Dispatch\n");
-        printf("   [5]  Record Processing Outcomes (Recycling & Chemical Disposal)\n");
-        printf("   [6]  Record Recyclable Material Commercial Sale\n");
-        printf("   [7]  End-to-End Waste Transparency Trail\n");
-        printf("   [8]  Manage Citizens Accounts\n");
-        printf("   [9]  Manage Public Smart Bins\n");
-        printf("   [10] Manage Field Collectors\n");
-        printf("   [11] Manage Vehicle Fleet (Trucks)\n");
-        printf("   [12] Manage Problem Reports (Citizen & Collector)\n");
-        printf("   [13] Statistical Reports & Performance Analytics\n");
-        printf("   [14] Admin Logout\n");
-        printDivider('-', 72);
+        printf("   [5]  Recycle / Process Collected Waste (Step 1: Warehouse)\n");
+        printf("   [6]  Sell Recycled Waste & Claim Admin Points (Step 2: Sales)\n");
+        printf("   [7]  View Admin Warehouse Inventory & Points Ledger\n");
+        printf("   [8]  End-to-End Waste Transparency Trail\n");
+        printf("   [9]  Manage Citizens Accounts\n");
+        printf("   [10] Manage Public Smart Bins\n");
+        printf("   [11] Manage Field Collectors\n");
+        printf("   [12] Manage Vehicle Fleet (Trucks)\n");
+        printf("   [13] Manage Problem Reports (Citizen & Collector)\n");
+        printf("   [14] Statistical Reports & Performance Analytics\n");
+        printf("   [15] Admin Logout\n");
+        printDivider('-', 74);
 
-        int choice = getInt(" Select an action [1-14]: ", 1, 14);
+        int choice = getInt(" Select an action [1-15]: ", 1, 15);
         switch (choice) {
             case 1:  manageRequestsUI(); break;
             case 2:  approveOrRejectRequestUI(); break;
             case 3:  assignCollectorAndTruckUI(); break;
             case 4:  routeDispatchUI(); break;
-            case 5:  manageProcessingRecordsUI(); break;
-            case 6:  recordRecyclableSaleUI(); break;
-            case 7:  viewTransparencyTrailUI(); break;
-            case 8:  manageUsersUI(); break;
-            case 9:  manageBinsUI(); break;
-            case 10: manageCollectorsUI(); break;
-            case 11: manageTrucksUI(); break;
-            case 12: manageProblemReportsUI(); break;
-            case 13: generateSystemReportsUI(); break;
-            case 14: return;
+            case 5:  manageProcessingRecordsUI(admin); break;
+            case 6:  recordRecyclableSaleUI(admin); break;
+            case 7:  viewAdminWarehouseUI(admin); break;
+            case 8:  viewTransparencyTrailUI(); break;
+            case 9:  manageUsersUI(); break;
+            case 10: manageBinsUI(); break;
+            case 11: manageCollectorsUI(); break;
+            case 12: manageTrucksUI(); break;
+            case 13: manageProblemReportsUI(); break;
+            case 14: generateSystemReportsUI(); break;
+            case 15: return;
         }
     }
 }
@@ -539,53 +577,63 @@ void routeDispatchUI(void) {
     pausePrompt();
 }
 
-/* ==================== 5. PROCESSING & CHEMICAL DISPOSAL RECORDS ==================== */
+/* ==================== 5. STEP 1: RECYCLE / PROCESS COLLECTED WASTE ==================== */
 
-void manageProcessingRecordsUI(void) {
+void manageProcessingRecordsUI(Admin* admin) {
     clearScreen();
-    printHeader("RECORD WASTE PROCESSING, RECYCLING & CHEMICAL SAFE DISPOSAL");
-    printf(" Process waste that has been physically collected from citizens.\n\n");
+    printHeader("STEP 1: RECYCLE / PROCESS COLLECTED WASTE");
+    printf(" Select collected waste delivered by field collectors to recycle or safely dispose.\n\n");
 
-    static WasteRequest reqs[MAX_REQUESTS];
-    int count = loadRequests(reqs, MAX_REQUESTS);
-    int collectedCount = 0;
+    syncCollectedRequestsToWarehouse();
 
-    printf("%-10s | %-24s | %-10s | %-16s\n",
-           "Req ID", "Waste Category", "Actual Wt", "Collection Date");
-    printDivider('-', 70);
+    static WarehouseBatch batches[MAX_WAREHOUSE];
+    int batchCount = loadWarehouseBatches(batches, MAX_WAREHOUSE);
+    int pendingRecycle = 0;
 
-    for (int i = 0; i < count; i++) {
-        if (reqs[i].status == REQ_STATUS_COLLECTED) {
-            printf("%-10s | %-24s | %-6.2f kg  | %-16s\n",
-                   reqs[i].id, reqs[i].waste_type, reqs[i].actual_weight, reqs[i].completed_at);
-            collectedCount++;
+    printf("%-10s | %-10s | %-10s | %-24s | %-10s | %-16s\n",
+           "Batch ID", "Req ID", "Collector", "Waste Category", "Weight", "Delivered On");
+    printDivider('-', 90);
+
+    for (int i = 0; i < batchCount; i++) {
+        if (strcmp(batches[i].stage, "Collected") == 0) {
+            printf("%-10s | %-10s | %-10s | %-24.24s | %-6.2f kg  | %-16s\n",
+                   batches[i].batch_id, batches[i].request_id, batches[i].collector_id,
+                   batches[i].waste_type, batches[i].weight_kg, batches[i].updated_at);
+            pendingRecycle++;
         }
     }
 
-    if (collectedCount == 0) {
-        printf(" No collected batches currently awaiting final processing outcome.\n");
+    if (pendingRecycle == 0) {
+        printf(" No collected waste batches currently waiting for recycling.\n");
+        printf(" Once a collector completes a collection, it automatically appears here.\n");
         pausePrompt();
         return;
     }
 
-    printDivider('=', 70);
-    char reqId[32];
-    getString(" Enter Request ID to record final processing: ", reqId, sizeof(reqId), false);
+    printDivider('=', 90);
+    char inputId[32];
+    getString(" Enter Batch ID (e.g. BAT1001) or Request ID (e.g. REQ1012) to process: ", inputId, sizeof(inputId), false);
 
-    WasteRequest* req = findRequestById(reqs, count, reqId);
-    if (!req || req->status != REQ_STATUS_COLLECTED) {
-        printf("[!] Invalid Request ID or request is not in 'Collected' status.\n");
+    WarehouseBatch* batch = findWarehouseBatchByIdOrReq(batches, batchCount, inputId);
+    if (!batch || strcmp(batch->stage, "Collected") != 0) {
+        printf("[!] Invalid ID or this batch has already been processed.\n");
         pausePrompt();
         return;
     }
 
-    printf("\n Selected Batch: %s (%s, %.2f kg)\n", req->id, req->waste_type, req->actual_weight);
+    static WasteRequest reqs[MAX_REQUESTS];
+    int reqCount = loadRequests(reqs, MAX_REQUESTS);
+    WasteRequest* req = findRequestById(reqs, reqCount, batch->request_id);
 
-    /* Check if Chemical / Hazardous Waste - Special Handling */
-    if (strstr(req->waste_type, "Hazardous") || strstr(req->waste_type, "Chemical")) {
+    printf("\n Selected Warehouse Batch: %s (Request: %s)\n", batch->batch_id, batch->request_id);
+    printf("   Material Type : %s\n", batch->waste_type);
+    printf("   Actual Weight : %.2f kg (Delivered by %s)\n", batch->weight_kg, batch->collector_id);
+
+    /* Special compliance handling for Chemical / Hazardous Waste */
+    if (strstr(batch->waste_type, "Hazardous") || strstr(batch->waste_type, "Chemical")) {
         printf("\n [!] CHEMICAL / HAZARDOUS WASTE DETECTED [!]\n");
-        printf(" In compliance with environmental safety regulations, chemical waste must NOT\n");
-        printf(" be treated like ordinary recyclable materials. It requires a certified handover.\n\n");
+        printf(" Chemical waste cannot be recycled or sold like ordinary materials.\n");
+        printf(" Please log certified handover to an authorized treatment facility.\n\n");
 
         char facility[64];
         char manifestId[32];
@@ -595,91 +643,245 @@ void manageProcessingRecordsUI(void) {
         getString(" Safe Handover Manifest / Permit Number: ", manifestId, sizeof(manifestId), false);
         getString(" Treatment Method (e.g. High-Temp Incineration / Neutralization): ", method, sizeof(method), false);
 
-        snprintf(req->final_outcome, sizeof(req->final_outcome),
+        snprintf(batch->recycle_details, sizeof(batch->recycle_details),
                  "Handed over to %s (Permit: %s) for safe %s", facility, manifestId, method);
-    } else {
-        /* Ordinary Recyclable or Compostable Waste */
-        printf("\n Processing Options:\n");
-        printf("   [1] Recycled into raw manufacturing pellets / flake at GreenTech\n");
-        printf("   [2] Processed & pulped into recycled cardboard at Paper Mills\n");
-        printf("   [3] Smelted and purified at Certified Metal Foundry\n");
-        printf("   [4] Composted into bio-fertilizer at Organic Composting Facility\n");
-        printf("   [5] Enter Custom Processing Outcome\n");
+        strcpy(batch->stage, "Disposed");
+        strncpy(batch->processed_by, admin->id, sizeof(batch->processed_by) - 1);
+        getCurrentTimestamp(batch->updated_at, sizeof(batch->updated_at));
 
-        int pChoice = getInt(" Select Option [1-5]: ", 1, 5);
-        if (pChoice == 1) strcpy(req->final_outcome, "Recycled into polymer pellets at EcoPlast Plant");
-        else if (pChoice == 2) strcpy(req->final_outcome, "Pulped into recycled paper products at GreenPaper Mill");
-        else if (pChoice == 3) strcpy(req->final_outcome, "Smelted and repurposed at National Metal Foundries");
-        else if (pChoice == 4) strcpy(req->final_outcome, "Composted into organic bio-fertilizer for municipal parks");
-        else {
-            getString(" Enter Detailed Final Outcome Description: ", req->final_outcome, sizeof(req->final_outcome), false);
+        /* Award compliance points to Admin for safe hazardous waste disposal */
+        int safetyPoints = (int)(batch->weight_kg * 15.0f);
+        if (safetyPoints < 10) safetyPoints = 10;
+        batch->admin_points_earned = safetyPoints;
+
+        updateWarehouseBatch(batch);
+
+        if (req) {
+            req->status = REQ_STATUS_FINAL_OUTCOME;
+            strncpy(req->final_outcome, batch->recycle_details, sizeof(req->final_outcome) - 1);
+            getCurrentTimestamp(req->completed_at, sizeof(req->completed_at));
+            updateRequest(req);
         }
-    }
 
-    req->status = REQ_STATUS_FINAL_OUTCOME;
-    getCurrentTimestamp(req->completed_at, sizeof(req->completed_at));
+        admin->admin_points += safetyPoints;
+        updateAdmin(admin);
 
-    if (updateRequest(req)) {
-        printf("\n[SUCCESS] Final processing record logged for %s!\n", req->id);
-        printf("Transparency Trail: %s\n", req->final_outcome);
+        printf("\n[SUCCESS] Hazardous batch %s safely disposed and certified!\n", batch->batch_id);
+        printf("[ADMIN POINTS ADDED] +%d Safety Compliance Points added to your Admin Portal!\n", safetyPoints);
+        printf("Current Admin Balance: %d pts\n", admin->admin_points);
     } else {
-        printf("\n[ERROR] Failed to save processing outcome.\n");
+        /* Recyclable, Organic, or E-Waste -> Step 1: Recycle into sellable material */
+        printf("\n Select Recycling / Processing Method:\n");
+        printf("   [1] Recycled into raw polymer pellets / flake (Plastic)\n");
+        printf("   [2] Pulped into recycled cardboard & paper stock (Paper)\n");
+        printf("   [3] Smelted & purified into metal ingots (Metal)\n");
+        printf("   [4] Crushed & cleaned into glass cullet (Glass)\n");
+        printf("   [5] Composted into organic bio-fertilizer (Organic)\n");
+        printf("   [6] Dismantled into recovered electronic components (E-Waste)\n");
+        printf("   [7] Enter Custom Recycling Description\n");
+
+        int pChoice = getInt(" Select Option [1-7]: ", 1, 7);
+        if (pChoice == 1) strcpy(batch->recycle_details, "Recycled into raw polymer pellets at Municipal Recycling Plant");
+        else if (pChoice == 2) strcpy(batch->recycle_details, "Pulped into recycled cardboard & paper sheets");
+        else if (pChoice == 3) strcpy(batch->recycle_details, "Smelted and purified into reusable metal ingots");
+        else if (pChoice == 4) strcpy(batch->recycle_details, "Crushed and sanitized into reusable glass cullet");
+        else if (pChoice == 5) strcpy(batch->recycle_details, "Composted into organic bio-fertilizer stock");
+        else if (pChoice == 6) strcpy(batch->recycle_details, "Dismantled into recovered e-waste components & copper");
+        else {
+            getString(" Enter Recycling Description: ", batch->recycle_details, sizeof(batch->recycle_details), false);
+        }
+
+        strcpy(batch->stage, "Recycled");
+        strncpy(batch->processed_by, admin->id, sizeof(batch->processed_by) - 1);
+        getCurrentTimestamp(batch->updated_at, sizeof(batch->updated_at));
+        updateWarehouseBatch(batch);
+
+        if (req) {
+            snprintf(req->final_outcome, sizeof(req->final_outcome),
+                     "Recycled: %s (Ready for Commercial Sale)", batch->recycle_details);
+            updateRequest(req);
+        }
+
+        printf("\n[SUCCESS] Batch %s (%.2f kg %s) has been RECYCLED!\n",
+               batch->batch_id, batch->weight_kg, batch->waste_type);
+        printf("Processing Note: %s\n", batch->recycle_details);
+        printf("Next Step: Go to Option [6] to sell this recycled batch and earn Admin Points.\n");
     }
 
     pausePrompt();
 }
 
-/* ==================== 6. RECYCLABLE SALES RECORD ==================== */
+/* ==================== 6. STEP 2: SELL RECYCLED WASTE & ADD ADMIN POINTS ==================== */
 
-void recordRecyclableSaleUI(void) {
+void recordRecyclableSaleUI(Admin* admin) {
     clearScreen();
-    printHeader("RECORD RECYCLABLE MATERIAL COMMERCIAL SALE");
-    printf(" Log bulk sales of recovered recyclables to authorized manufacturing partners.\n\n");
+    printHeader("STEP 2: SELL RECYCLED WASTE & EARN ADMIN POINTS");
+    printf(" Sell recycled waste batches from your warehouse to commercial buyers.\n");
+    printf(" Once sold, points and revenue are automatically added to your Admin Portal!\n\n");
+
+    static WarehouseBatch batches[MAX_WAREHOUSE];
+    int batchCount = loadWarehouseBatches(batches, MAX_WAREHOUSE);
+    int readyCount = 0;
+
+    printf("%-10s | %-10s | %-24s | %-10s | %-28s\n",
+           "Batch ID", "Req ID", "Material Type", "Weight", "Recycled Form");
+    printDivider('-', 90);
+
+    for (int i = 0; i < batchCount; i++) {
+        if (strcmp(batches[i].stage, "Recycled") == 0) {
+            printf("%-10s | %-10s | %-24.24s | %-6.2f kg  | %-28.28s\n",
+                   batches[i].batch_id, batches[i].request_id, batches[i].waste_type,
+                   batches[i].weight_kg, batches[i].recycle_details);
+            readyCount++;
+        }
+    }
+
+    if (readyCount == 0) {
+        printf(" No recycled batches are currently ready for sale.\n");
+        printf(" Please complete Step 1 (Option [5] Recycle Collected Waste) first!\n");
+        pausePrompt();
+        return;
+    }
+
+    printDivider('=', 90);
+    char inputId[32];
+    getString(" Enter Batch ID (e.g. BAT1001) or Request ID to sell: ", inputId, sizeof(inputId), false);
+
+    WarehouseBatch* batch = findWarehouseBatchByIdOrReq(batches, batchCount, inputId);
+    if (!batch || strcmp(batch->stage, "Recycled") != 0) {
+        printf("[!] Invalid ID or this batch is not in 'Recycled' stage ready for sale.\n");
+        pausePrompt();
+        return;
+    }
 
     RecyclableSale sale;
     memset(&sale, 0, sizeof(sale));
 
     generateNextSaleId(sale.id);
-    printf(" Transaction Sale ID: %s\n\n", sale.id);
+    strncpy(sale.material_type, batch->waste_type, sizeof(sale.material_type) - 1);
+    sale.weight_kg = batch->weight_kg;
+    strncpy(sale.batch_id, batch->batch_id, sizeof(sale.batch_id) - 1);
+    strncpy(sale.admin_id, admin->id, sizeof(sale.admin_id) - 1);
 
-    printf(" Material Category Sold:\n");
-    printf("   [1] Recyclable - Plastic (PET / HDPE)\n");
-    printf("   [2] Recyclable - Paper & Cardboard\n");
-    printf("   [3] Recyclable - Metal / Aluminum Cans\n");
-    printf("   [4] Recyclable - Glass\n");
-    int mChoice = getInt(" Select Material [1-4]: ", 1, 4);
+    printf("\n Selling Recycled Batch %s (%s - %.2f kg)\n",
+           batch->batch_id, batch->waste_type, batch->weight_kg);
+    printf(" Recycling Details: %s\n\n", batch->recycle_details);
 
-    if (mChoice == 1) strcpy(sale.material_type, "Recyclable - Plastic");
-    else if (mChoice == 2) strcpy(sale.material_type, "Recyclable - Paper & Cardboard");
-    else if (mChoice == 3) strcpy(sale.material_type, "Recyclable - Metal / Cans");
-    else strcpy(sale.material_type, "Recyclable - Glass");
-
-    sale.weight_kg = getFloat(" Bulk Quantity Sold (kg): ", 1.0f, 100000.0f);
     getString(" Commercial Buyer / Recycling Company: ", sale.buyer_name, sizeof(sale.buyer_name), false);
     sale.rate_per_kg = getFloat(" Sale Rate per kg (Currency): ", 0.5f, 1000.0f);
     sale.total_amount = sale.weight_kg * sale.rate_per_kg;
     getCurrentTimestamp(sale.sale_date, sizeof(sale.sale_date));
 
-    printf("\n Commercial Transaction Summary:\n");
-    printf("   Sale ID      : %s\n", sale.id);
-    printf("   Material     : %s\n", sale.material_type);
-    printf("   Total Weight : %.2f kg\n", sale.weight_kg);
-    printf("   Buyer        : %s\n", sale.buyer_name);
-    printf("   Rate / kg    : $%.2f\n", sale.rate_per_kg);
-    printf("   Total Value  : $%.2f\n", sale.total_amount);
-    printDivider('-', 60);
+    int earnedPoints = calculateAdminSalePoints(sale.material_type, sale.weight_kg, sale.total_amount);
+
+    printf("\n Commercial Sale & Admin Points Summary:\n");
+    printDivider('-', 65);
+    printf("   Sale ID            : %s\n", sale.id);
+    printf("   Linked Batch / Req : %s / %s\n", batch->batch_id, batch->request_id);
+    printf("   Material Sold      : %s\n", sale.material_type);
+    printf("   Verified Weight    : %.2f kg\n", sale.weight_kg);
+    printf("   Buyer Company      : %s\n", sale.buyer_name);
+    printf("   Rate / kg          : $%.2f\n", sale.rate_per_kg);
+    printf("   Total Sale Revenue : $%.2f\n", sale.total_amount);
+    printf("   Admin Points Earned: +%d pts (Weight + Revenue Bonus)\n", earnedPoints);
+    printDivider('-', 65);
 
     char confirm[16];
-    getString(" Confirm and save commercial transaction? (Y/N): ", confirm, sizeof(confirm), false);
+    getString(" Confirm sale and credit points to Admin Portal? (Y/N): ", confirm, sizeof(confirm), false);
     if (confirm[0] == 'Y' || confirm[0] == 'y') {
-        if (addSale(&sale)) {
-            printf("\n[SUCCESS] Sale transaction %s recorded successfully!\n", sale.id);
-        } else {
-            printf("\n[ERROR] Failed to save sale transaction.\n");
+        /* 1. Save Sale Record */
+        addSale(&sale);
+
+        /* 2. Update Warehouse Batch to Sold */
+        strcpy(batch->stage, "Sold");
+        strncpy(batch->sale_id, sale.id, sizeof(batch->sale_id) - 1);
+        batch->sale_amount = sale.total_amount;
+        batch->admin_points_earned = earnedPoints;
+        strncpy(batch->processed_by, admin->id, sizeof(batch->processed_by) - 1);
+        getCurrentTimestamp(batch->updated_at, sizeof(batch->updated_at));
+        updateWarehouseBatch(batch);
+
+        /* 3. Finalize Citizen's Request Transparency Trail */
+        static WasteRequest reqs[MAX_REQUESTS];
+        int reqCount = loadRequests(reqs, MAX_REQUESTS);
+        WasteRequest* req = findRequestById(reqs, reqCount, batch->request_id);
+        if (req) {
+            req->status = REQ_STATUS_FINAL_OUTCOME;
+            snprintf(req->final_outcome, sizeof(req->final_outcome),
+                     "%s | Sold to %s ($%.2f, %s)",
+                     batch->recycle_details, sale.buyer_name, sale.total_amount, sale.id);
+            getCurrentTimestamp(req->completed_at, sizeof(req->completed_at));
+            updateRequest(req);
         }
+
+        /* 4. Credit Admin Points & Revenue to Admin Portal Account */
+        admin->admin_points += earnedPoints;
+        admin->total_revenue += sale.total_amount;
+        updateAdmin(admin);
+
+        printf("\n[SUCCESS] Sale transaction %s completed!\n", sale.id);
+        printf("[ADMIN POINTS ADDED] +%d Admin Points & +$%.2f Revenue added to %s's Portal!\n",
+               earnedPoints, sale.total_amount, admin->name);
+        printf("Updated Admin Balance: %d pts | Total Revenue: $%.2f\n",
+               admin->admin_points, admin->total_revenue);
     } else {
-        printf("\n[INFO] Sale entry cancelled.\n");
+        printf("\n[INFO] Commercial sale cancelled.\n");
     }
+
+    pausePrompt();
+}
+
+/* ==================== 7. VIEW ADMIN WAREHOUSE INVENTORY & POINTS ==================== */
+
+void viewAdminWarehouseUI(const Admin* admin) {
+    clearScreen();
+    printHeader("ADMIN WAREHOUSE INVENTORY & POINTS LEDGER");
+    printf(" Admin Officer : %s (%s) | Role: %s\n", admin->name, admin->id, admin->role);
+    printf(" Admin Balance : [%d Admin Points] | Total Revenue: [$%.2f]\n",
+           admin->admin_points, admin->total_revenue);
+    printDivider('=', 95);
+
+    syncCollectedRequestsToWarehouse();
+
+    static WarehouseBatch batches[MAX_WAREHOUSE];
+    int count = loadWarehouseBatches(batches, MAX_WAREHOUSE);
+
+    if (count == 0) {
+        printf(" Warehouse is currently empty. Batches appear automatically when collectors complete tasks.\n");
+    } else {
+        printf("%-9s | %-9s | %-8s | %-20s | %-8s | %-10s | %-9s | %-8s\n",
+               "Batch ID", "Req ID", "Coll ID", "Waste Type", "Weight", "Stage", "Revenue", "Adm Pts");
+        printDivider('-', 95);
+
+        float totalKg = 0.0f;
+        float totalRev = 0.0f;
+        int totalAdmPts = 0;
+
+        for (int i = 0; i < count; i++) {
+            printf("%-9s | %-9s | %-8s | %-20.20s | %-5.1f kg | %-10s | $%-8.2f | +%-6d\n",
+                   batches[i].batch_id,
+                   batches[i].request_id,
+                   batches[i].collector_id,
+                   batches[i].waste_type,
+                   batches[i].weight_kg,
+                   batches[i].stage,
+                   batches[i].sale_amount,
+                   batches[i].admin_points_earned);
+            totalKg += batches[i].weight_kg;
+            totalRev += batches[i].sale_amount;
+            totalAdmPts += batches[i].admin_points_earned;
+        }
+        printDivider('-', 95);
+        printf(" WAREHOUSE TOTALS: %d Batches | %.2f kg Handled | $%.2f Sold | +%d Admin Points Earned\n",
+               count, totalKg, totalRev, totalAdmPts);
+    }
+
+    printf("\n Pipeline Stages:\n");
+    printf("   * Collected -> Received from Collector (Go to Option [5] to Recycle)\n");
+    printf("   * Recycled  -> Processed & Ready (Go to Option [6] to Sell & Earn Points)\n");
+    printf("   * Sold      -> Sold to Buyer & Points Credited to Admin Portal\n");
+    printf("   * Disposed  -> Hazardous/Chemical Waste Safely Handed Over\n");
+    printDivider('=', 95);
 
     pausePrompt();
 }
@@ -1026,7 +1228,7 @@ void manageProblemReportsUI(void) {
     }
 }
 
-/* ==================== 13. STATISTICAL REPORTS & ANALYTICS ==================== */
+/* ==================== 14. STATISTICAL REPORTS & ANALYTICS ==================== */
 
 void generateSystemReportsUI(void) {
     while (1) {
@@ -1037,10 +1239,11 @@ void generateSystemReportsUI(void) {
         printf("   [2] Citizen Reward Points Ledger & Distribution Report\n");
         printf("   [3] Field Collector Performance Report\n");
         printf("   [4] Vehicle Fleet Utilization & Load Report\n");
-        printf("   [5] Return to Dashboard\n");
+        printf("   [5] Admin Points & Commercial Sales Revenue Report\n");
+        printf("   [6] Return to Dashboard\n");
         printDivider('-', 65);
 
-        int choice = getInt(" Select Report [1-5]: ", 1, 5);
+        int choice = getInt(" Select Report [1-6]: ", 1, 6);
         if (choice == 1) {
             clearScreen();
             printHeader("WASTE VOLUME STATISTICS BY CATEGORY");
@@ -1140,6 +1343,46 @@ void generateSystemReportsUI(void) {
                        trucks[i].current_load_kg, trucks[i].status, util);
             }
             printDivider('=', 80);
+            pausePrompt();
+        } else if (choice == 5) {
+            clearScreen();
+            printHeader("ADMIN PORTAL POINTS & COMMERCIAL SALES REVENUE REPORT");
+            static Admin admins[MAX_ADMINS];
+            int aCount = loadAdmins(admins, MAX_ADMINS);
+
+            printf(" Administrator Recycling & Sales Performance:\n");
+            printf("%-10s | %-22s | %-20s | %-10s | %-12s\n",
+                   "Admin ID", "Officer Name", "Role", "Admin Pts", "Sales Rev");
+            printDivider('-', 84);
+
+            int totalAdminPts = 0;
+            float totalAdminRev = 0.0f;
+            for (int i = 0; i < aCount; i++) {
+                printf("%-10s | %-22.22s | %-20.20s | %-10d | $%-10.2f\n",
+                       admins[i].id, admins[i].name, admins[i].role,
+                       admins[i].admin_points, admins[i].total_revenue);
+                totalAdminPts += admins[i].admin_points;
+                totalAdminRev += admins[i].total_revenue;
+            }
+            printDivider('-', 84);
+            printf(" TOTAL ADMIN CREDITS: %d pts | ADMIN-TRACKED REVENUE: $%.2f\n\n",
+                   totalAdminPts, totalAdminRev);
+
+            static RecyclableSale sales[MAX_SALES];
+            int sCount = loadSales(sales, MAX_SALES);
+            printf(" Commercial Recyclable Sales Ledger (%d transactions):\n", sCount);
+            printf("%-10s | %-10s | %-22s | %-9s | %-18s | %-10s\n",
+                   "Sale ID", "Batch ID", "Material", "Weight", "Buyer", "Total ($)");
+            printDivider('-', 90);
+            float grandSales = 0.0f;
+            for (int i = 0; i < sCount; i++) {
+                printf("%-10s | %-10s | %-22.22s | %-6.1f kg | %-18.18s | $%-9.2f\n",
+                       sales[i].id, sales[i].batch_id, sales[i].material_type,
+                       sales[i].weight_kg, sales[i].buyer_name, sales[i].total_amount);
+                grandSales += sales[i].total_amount;
+            }
+            printDivider('=', 90);
+            printf(" GRAND COMMERCIAL SALES REVENUE: $%.2f\n", grandSales);
             pausePrompt();
         } else {
             break;

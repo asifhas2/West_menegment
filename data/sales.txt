@@ -5,3 +5,4 @@ SALE1004|Recyclable - Plastic|10.50|EcoPlast Industries Ltd.|35.00|367.50|2026-1
 SALE1005|Recyclable - Glass|20.00|DIU|10.00|200.00|2026-11-18 12:42
 SALE1006|Recyclable - Glass|15.00|glausHuv|20.00|300.00|2026-11-18 12:54
 SALE1007|Recyclable - Paper & Cardboard|30.00|ABCD|30.00|900.00|2026-11-18 12:56
+SALE1008|Recyclable - Plastic|25.00|ABCD|24.00|600.00|2026-11-18 13:43|BAT1001|ADM105

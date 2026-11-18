@@ -476,6 +476,12 @@ void completeCollectionUI(Collector* collector) {
         return;
     }
 
+    if (req->status != REQ_STATUS_ASSIGNED && req->status != REQ_STATUS_IN_PROGRESS) {
+        printf("[!] This task cannot be completed right now (Current Status: %s).\n", getStatusName(req->status));
+        pausePrompt();
+        return;
+    }
+
     printf("\n Task Summary:\n");
     printf("   Material Type : %s\n", req->waste_type);
     printf("   Est. Weight   : %.2f kg\n", req->estimated_weight);
@@ -542,9 +548,28 @@ void completeCollectionUI(Collector* collector) {
         updateTruck(truck);
     }
 
+    /* 5. Log Collected Waste Batch into Admin Portal Warehouse */
+    WarehouseBatch batch;
+    memset(&batch, 0, sizeof(batch));
+    generateNextBatchId(batch.batch_id);
+    strncpy(batch.request_id, req->id, sizeof(batch.request_id) - 1);
+    strncpy(batch.collector_id, collector->id, sizeof(batch.collector_id) - 1);
+    strncpy(batch.waste_type, req->waste_type, sizeof(batch.waste_type) - 1);
+    batch.weight_kg = actualWeight;
+    strcpy(batch.stage, "Collected");
+    strcpy(batch.recycle_details, "Delivered to Municipal Warehouse - Ready for Recycling");
+    strcpy(batch.sale_id, "N/A");
+    batch.sale_amount = 0.0f;
+    batch.admin_points_earned = 0;
+    strcpy(batch.processed_by, "Pending");
+    getCurrentTimestamp(batch.updated_at, sizeof(batch.updated_at));
+    addWarehouseBatch(&batch);
+
     printf("\n[SUCCESS] Collection for %s completed successfully!\n", req->id);
     printf("Citizen %s has been credited with +%d reward points.\n", req->user_id, pointsEarned);
     printf("Updated truck load: %.2f kg\n", truck ? truck->current_load_kg : actualWeight);
+    printf("[ADMIN PORTAL SYNC] Batch %s (%.2f kg %s) saved to Admin Warehouse for recycling & sale.\n",
+           batch.batch_id, batch.weight_kg, batch.waste_type);
 
     pausePrompt();
 }
