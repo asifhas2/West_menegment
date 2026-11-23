@@ -9,6 +9,7 @@ void clearScreen(void) {
 }
 
 void pausePrompt(void) {
+    if (feof(stdin)) return;
     printf("\nPress [ENTER] to continue...");
     int c;
     while ((c = getchar()) != '\n' && c != EOF) {}
@@ -52,6 +53,10 @@ void getString(const char* prompt, char* output, int max_len, bool allow_empty) 
             printf("%s", prompt);
         }
         if (!fgets(buffer, sizeof(buffer), stdin)) {
+            if (feof(stdin)) {
+                output[0] = '\0';
+                exit(0);
+            }
             buffer[0] = '\0';
             output[0] = '\0';
             return;
@@ -78,6 +83,7 @@ int getInt(const char* prompt, int min_val, int max_val) {
     while (1) {
         printf("%s", prompt);
         if (!fgets(buffer, sizeof(buffer), stdin)) {
+            if (feof(stdin)) exit(0);
             return min_val;
         }
         trimString(buffer);
@@ -107,6 +113,7 @@ float getFloat(const char* prompt, float min_val, float max_val) {
     while (1) {
         printf("%s", prompt);
         if (!fgets(buffer, sizeof(buffer), stdin)) {
+            if (feof(stdin)) exit(0);
             return min_val;
         }
         trimString(buffer);

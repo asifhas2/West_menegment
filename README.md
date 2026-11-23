@@ -17,6 +17,8 @@ The system connects three primary municipal actors through persistent file stora
 - **Report Public Bin Problem**: Report overflowing, damaged, or hazardous public bins directly to dispatchers.
 - **Verified Collection History**: Review completed pick-ups with actual measured scale weights.
 - **Reward Points & History**: Real-time points balance and transaction ledger.
+- **Eco-Store (Rewards Redemption)**: Spend earned recycling points to purchase high-quality eco-friendly items (Stainless Steel Water Bottle, Small Household Dustbin, Antibacterial Handwash, Recycled Paper Tissues, Biodegradable Trash Bags, Cotton Totes, Rubber Cleaning Gloves, and Organic Dish Soap).
+- **Eco-Store Purchase History**: View past orders, delivery addresses, items received, and dispatch status.
 - **Waste Outcome Transparency Trail**: Follow collected waste to its final ecological destination (recycled, composted, or safely treated).
 
 ### 2. Waste Collector Portal
@@ -36,12 +38,13 @@ The system connects three primary municipal actors through persistent file stora
 - **Admin Warehouse Pipeline (Collected ➔ Recycle ➔ Sell ➔ Admin Points)**:
   1. **Automatic Collector Handoff**: When a collector finishes a pickup, the verified waste batch (`BATxxxx`) is automatically logged into the Admin Warehouse (`data/warehouse.txt`).
   2. **Step 1 – Recycle / Process Waste**: Admin processes collected batches into sellable recycled materials (or certifies safe hazardous chemical disposal).
-  3. **Step 2 – Sell Recycled Waste & Claim Admin Points**: Admin selects recycled batches from warehouse stock, sells them to commercial buyers, updates the citizen's transparency trail, and automatically receives **Admin Points & Sales Revenue** in the Admin Portal.
-  4. **Warehouse Inventory & Points Ledger**: Full audit of all batches across stages along with Admin Points & Revenue totals.
+  3. **Step 2 – Sell Recycled Waste & Claim Admin Points**: Admin selects recycled batches from warehouse stock and sells them to commercial buyers. **Net Revenue and Admin Points** are calculated automatically using the rule: `Net Revenue = Admin Sale Amount - User Earned Reward Coins`. This net profit is directly credited to the Administrator's Wallet and Total Revenue.
+  4. **Warehouse Inventory & Points Ledger**: Full audit of all batches across stages along with Admin Points & Net Revenue totals.
 - **End-to-End Transparency Trail**: Full audit trail from citizen origin to final recycling & commercial sale.
+- **Eco-Store Orders & Dispatch Management**: Review citizen reward orders, track delivery addresses, update order status (`Processing in Warehouse`, `Dispatched for Delivery`, `Delivered to Citizen`), or cancel and refund points.
 - **Entity Management**: CRUD operations for citizens, public smart bins, collectors, and trucks.
 - **Incident Management**: Review and resolve problem reports from both citizens and collectors.
-- **Statistical Analytics & Reports**: Material volume breakdown, citizen rewards ledger, collector rankings, fleet load reports, and Admin Points & Sales Revenue report.
+- **Statistical Analytics & Reports**: Material volume breakdown, citizen rewards ledger, collector rankings, fleet load reports, Admin Points & Commercial Sales Net Revenue report, and Eco-Store Redemption report.
 
 ---
 
@@ -79,15 +82,19 @@ All three portals now support **full user registration** and **real credential a
    - `[1] Administrator Login` (Log in with admin username/email and password from `data/admins.txt`)
    - `[2] Register New Administrator` (Authorized staff onboarding using Municipal Master Key: `admin123`)
 
-### Pre-configured Accounts (Ready to Test)
+### Active Accounts (Cleaned & Ready to Test)
 
 | Role | Username / ID / Email | Password | Details |
 |---|---|---|---|
-| **Citizen** | `user@test.com` or `01711223344` | `password123` | Rahim Ahmed |
-| **Collector** | `COL101` or `karim@collector.com` | `collector123` | Karim Ullah (Truck TRK-01) |
-| **Collector** | `COL102` or `hasan@collector.com` | `collector123` | Hasan Mahmud (Truck TRK-03) |
-| **Admin** | `admin` | `admin123` | System Administrator (Super Admin) |
-| **Admin** | `manager` | `admin123` | Operations Director |
+| **Citizen** | `ak1247942@gmail.com` or `01810401376` | `12345678` | Md Asif Hasan |
+| **Citizen** | `Mirpur10` or `01810401377` | `1234` | sune sinha |
+| **Collector** | `COL104` or `rafiq@collector.com` | `pass1234` | Rafiqul Islam (Truck TRK-02) |
+| **Collector** | `COL105` or `sune@12gmail.com` | `1234` | sune (Truck TRK-01) |
+| **Collector** | `COL106` or `sinhasonia97@gmail.com` | `1234` | sonia (Truck TRK-02) |
+| **Admin** | `ADM102` or `manager` | `admin123` | Operations Director |
+| **Admin** | `ADM103` or `farhana@city.gov` | `adminpass123` | Farhana Yasmin |
+| **Admin** | `ADM104` or `shoybe@gmail.com` | `1234` | shoybe |
+| **Admin** | `ADM105` or `shoyeb6004@gmail.com` | `1234` | Md Shoybe hasan |
 
 *(Master Authorization Key for onboarding new Admins: `admin123`)*
 
@@ -123,6 +130,8 @@ West_menegment_v3/
     ├── requests.txt           # Waste collection requests and status
     ├── rewards.txt            # Reward points transaction ledger
     ├── sales.txt              # Commercial recyclable sales
+    ├── store_items.txt        # Eco-Store catalog and inventory stock
+    ├── purchases.txt          # Citizen points redemption orders and dispatch status
     ├── trucks.txt             # Municipal fleet database
     ├── users.txt              # Registered citizen accounts
     └── warehouse.txt          # Admin warehouse inventory (Collected -> Recycled -> Sold)

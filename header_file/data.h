@@ -90,4 +90,17 @@ WarehouseBatch* findWarehouseBatchByIdOrReq(WarehouseBatch batches[], int count,
 void generateNextBatchId(char* out_id);
 void syncCollectedRequestsToWarehouse(void);
 
+/* Eco-Store items & citizen points redemptions */
+int loadStoreItems(StoreItem items[], int max_count);
+bool saveStoreItems(const StoreItem items[], int count);
+bool addStoreItem(const StoreItem* item);
+bool updateStoreItem(const StoreItem* item);
+StoreItem* findStoreItemById(StoreItem items[], int count, const char* id);
+void generateNextStoreItemId(char* out_id);
+
+int loadPurchases(ItemPurchase purchases[], int max_count);
+bool savePurchases(const ItemPurchase purchases[], int count);
+bool addPurchase(const ItemPurchase* purchase);
+void generateNextPurchaseId(char* out_id);
+
 #endif /* DATA_H */

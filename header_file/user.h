@@ -18,6 +18,8 @@ void viewRequestDetailsUI(const User* user);
 void reportBinProblemUI(const User* user);
 void viewCollectionHistoryUI(const User* user);
 void viewRewardSummaryUI(const User* user);
+void redeemPointsUI(User* user);
+void viewPurchaseHistoryUI(const User* user);
 void viewWasteOutcomeTransparencyUI(const User* user);
 void viewUserProfileUI(const User* user);
 

@@ -139,17 +139,9 @@ bool handleAdminLogin(Admin* loggedInAdmin) {
     return true;
 }
 
-/* Helper to calculate Admin Portal points earned after recycling and selling a batch */
-static int calculateAdminSalePoints(const char* waste_type, float weight_kg, float total_amount) {
-    int basePerKg = 8;
-    if (strstr(waste_type, "Plastic") || strstr(waste_type, "Metal") || strstr(waste_type, "E-Waste")) {
-        basePerKg = 10;
-    } else if (strstr(waste_type, "Organic")) {
-        basePerKg = 5;
-    }
-    int weightPoints = (int)(weight_kg * (float)basePerKg);
-    int revenueBonus = (int)(total_amount / 10.0f);
-    return weightPoints + revenueBonus;
+/* Helper to calculate Admin Net Revenue and Points: Revenue = Admin Sale Amount - User Earned Coins */
+static float calculateAdminNetRevenue(float sale_total_amount, int user_earned_coins) {
+    return sale_total_amount - (float)user_earned_coins;
 }
 
 /* ==================== ADMIN DASHBOARD ==================== */
@@ -205,7 +197,7 @@ void showAdminDashboard(Admin* admin) {
         clearScreen();
         printHeader("MUNICIPAL OPERATIONS DASHBOARD");
         printf(" Logged In   : %s (ID: %s) | Role: %s\n", admin->name, admin->id, admin->role);
-        printf(" Admin Wallet: %d Admin Points | Total Sales Revenue: $%.2f\n",
+        printf(" Admin Wallet: %d Admin Points | Total Net Revenue: $%.2f\n",
                admin->admin_points, admin->total_revenue);
         printf(" Warehouse   : %d Collected (To Recycle) | %d Recycled (Ready to Sell) | %d Finalized\n",
                toRecycleCount, readyToSellCount, completedBatchCount);
@@ -228,11 +220,12 @@ void showAdminDashboard(Admin* admin) {
         printf("   [11] Manage Field Collectors\n");
         printf("   [12] Manage Vehicle Fleet (Trucks)\n");
         printf("   [13] Manage Problem Reports (Citizen & Collector)\n");
-        printf("   [14] Statistical Reports & Performance Analytics\n");
-        printf("   [15] Admin Logout\n");
+        printf("   [14] Eco-Store Orders & Citizen Redemptions (Dispatch Management)\n");
+        printf("   [15] Statistical Reports & Performance Analytics\n");
+        printf("   [16] Admin Logout\n");
         printDivider('-', 74);
 
-        int choice = getInt(" Select an action [1-15]: ", 1, 15);
+        int choice = getInt(" Select an action [1-16]: ", 1, 16);
         switch (choice) {
             case 1:  manageRequestsUI(); break;
             case 2:  approveOrRejectRequestUI(); break;
@@ -247,8 +240,9 @@ void showAdminDashboard(Admin* admin) {
             case 11: manageCollectorsUI(); break;
             case 12: manageTrucksUI(); break;
             case 13: manageProblemReportsUI(); break;
-            case 14: generateSystemReportsUI(); break;
-            case 15: return;
+            case 14: viewStorePurchasesUI(); break;
+            case 15: generateSystemReportsUI(); break;
+            case 16: return;
         }
     }
 }
@@ -763,31 +757,48 @@ void recordRecyclableSaleUI(Admin* admin) {
     strncpy(sale.batch_id, batch->batch_id, sizeof(sale.batch_id) - 1);
     strncpy(sale.admin_id, admin->id, sizeof(sale.admin_id) - 1);
 
+    /* Find linked request to determine citizen's earned reward coins for this waste */
+    static WasteRequest reqs[MAX_REQUESTS];
+    int reqCount = loadRequests(reqs, MAX_REQUESTS);
+    WasteRequest* req = findRequestById(reqs, reqCount, batch->request_id);
+    int userEarnedCoins = req ? req->points_awarded : 0;
+
     printf("\n Selling Recycled Batch %s (%s - %.2f kg)\n",
            batch->batch_id, batch->waste_type, batch->weight_kg);
-    printf(" Recycling Details: %s\n\n", batch->recycle_details);
+    printf("   Recycling Details : %s\n", batch->recycle_details);
+    printf("   Linked Request ID : %s (Citizen Received: %d reward coins/pts)\n\n",
+           batch->request_id, userEarnedCoins);
 
-    getString(" Commercial Buyer / Recycling Company: ", sale.buyer_name, sizeof(sale.buyer_name), false);
+    getString(" Commercial Buyer / Purchasing Company: ", sale.buyer_name, sizeof(sale.buyer_name), false);
     sale.rate_per_kg = getFloat(" Sale Rate per kg (Currency): ", 0.5f, 1000.0f);
     sale.total_amount = sale.weight_kg * sale.rate_per_kg;
     getCurrentTimestamp(sale.sale_date, sizeof(sale.sale_date));
 
-    int earnedPoints = calculateAdminSalePoints(sale.material_type, sale.weight_kg, sale.total_amount);
+    /* Revenue = Admin Sale Amount - User Earned Coins */
+    float grossSaleAmount = sale.total_amount;
+    float netRevenue = calculateAdminNetRevenue(grossSaleAmount, userEarnedCoins);
+    int netRevenueCoins = (int)netRevenue;
 
-    printf("\n Commercial Sale & Admin Points Summary:\n");
-    printDivider('-', 65);
-    printf("   Sale ID            : %s\n", sale.id);
-    printf("   Linked Batch / Req : %s / %s\n", batch->batch_id, batch->request_id);
-    printf("   Material Sold      : %s\n", sale.material_type);
-    printf("   Verified Weight    : %.2f kg\n", sale.weight_kg);
-    printf("   Buyer Company      : %s\n", sale.buyer_name);
-    printf("   Rate / kg          : $%.2f\n", sale.rate_per_kg);
-    printf("   Total Sale Revenue : $%.2f\n", sale.total_amount);
-    printf("   Admin Points Earned: +%d pts (Weight + Revenue Bonus)\n", earnedPoints);
-    printDivider('-', 65);
+    printf("\n Commercial Sale & Net Revenue Summary:\n");
+    printDivider('-', 70);
+    printf("   Sale Transaction ID   : %s\n", sale.id);
+    printf("   Warehouse Batch ID    : %s (Request: %s)\n", batch->batch_id, batch->request_id);
+    printf("   Material Sold         : %s\n", sale.material_type);
+    printf("   Verified Weight       : %.2f kg\n", sale.weight_kg);
+    printf("   Buyer Company         : %s\n", sale.buyer_name);
+    printf("   Sale Rate / kg        : $%.2f\n", sale.rate_per_kg);
+    printDivider('-', 70);
+    printf("   Admin Sale to Buyer   : $%.2f (%.0f coins) [Gross]\n", grossSaleAmount, grossSaleAmount);
+    printf("   User Earned Coin      : -%d coins (Citizen Collection Cost)\n", userEarnedCoins);
+    printDivider('-', 70);
+    printf("   NET REVENUE (Profit)  : +$%.2f (+%d coins)\n", netRevenue, netRevenueCoins);
+    printf("   Formula applied       : Revenue = Admin Sale ($%.2f) - User Coins (%d)\n",
+           grossSaleAmount, userEarnedCoins);
+    printf("   Points added to Admin : +%d Admin Points / Coins\n", netRevenueCoins);
+    printDivider('=', 70);
 
     char confirm[16];
-    getString(" Confirm sale and credit points to Admin Portal? (Y/N): ", confirm, sizeof(confirm), false);
+    getString(" Confirm sale and add Net Revenue to Admin Portal? (Y/N): ", confirm, sizeof(confirm), false);
     if (confirm[0] == 'Y' || confirm[0] == 'y') {
         /* 1. Save Sale Record */
         addSale(&sale);
@@ -796,33 +807,32 @@ void recordRecyclableSaleUI(Admin* admin) {
         strcpy(batch->stage, "Sold");
         strncpy(batch->sale_id, sale.id, sizeof(batch->sale_id) - 1);
         batch->sale_amount = sale.total_amount;
-        batch->admin_points_earned = earnedPoints;
+        batch->admin_points_earned = netRevenueCoins;
         strncpy(batch->processed_by, admin->id, sizeof(batch->processed_by) - 1);
         getCurrentTimestamp(batch->updated_at, sizeof(batch->updated_at));
         updateWarehouseBatch(batch);
 
         /* 3. Finalize Citizen's Request Transparency Trail */
-        static WasteRequest reqs[MAX_REQUESTS];
-        int reqCount = loadRequests(reqs, MAX_REQUESTS);
-        WasteRequest* req = findRequestById(reqs, reqCount, batch->request_id);
         if (req) {
             req->status = REQ_STATUS_FINAL_OUTCOME;
             snprintf(req->final_outcome, sizeof(req->final_outcome),
-                     "%s | Sold to %s ($%.2f, %s)",
-                     batch->recycle_details, sale.buyer_name, sale.total_amount, sale.id);
+                     "%s | Sold to %s ($%.2f, Net Rev: $%.2f, %s)",
+                     batch->recycle_details, sale.buyer_name, sale.total_amount, netRevenue, sale.id);
             getCurrentTimestamp(req->completed_at, sizeof(req->completed_at));
             updateRequest(req);
         }
 
-        /* 4. Credit Admin Points & Revenue to Admin Portal Account */
-        admin->admin_points += earnedPoints;
-        admin->total_revenue += sale.total_amount;
+        /* 4. Credit Net Revenue & Points to Admin Portal Account */
+        admin->total_revenue += netRevenue;
+        admin->admin_points += netRevenueCoins;
         updateAdmin(admin);
 
         printf("\n[SUCCESS] Sale transaction %s completed!\n", sale.id);
-        printf("[ADMIN POINTS ADDED] +%d Admin Points & +$%.2f Revenue added to %s's Portal!\n",
-               earnedPoints, sale.total_amount, admin->name);
-        printf("Updated Admin Balance: %d pts | Total Revenue: $%.2f\n",
+        printf("[REVENUE ADDED] +$%.2f Net Revenue (+%d Admin Coins) added to your total revenue!\n",
+               netRevenue, netRevenueCoins);
+        printf("Formula: Net Revenue (%.2f) = Admin Sale (%.2f) - User Earned Coins (%d)\n",
+               netRevenue, grossSaleAmount, userEarnedCoins);
+        printf("Updated Admin Balance: %d pts | Total Net Revenue: $%.2f\n",
                admin->admin_points, admin->total_revenue);
     } else {
         printf("\n[INFO] Commercial sale cancelled.\n");
@@ -837,7 +847,7 @@ void viewAdminWarehouseUI(const Admin* admin) {
     clearScreen();
     printHeader("ADMIN WAREHOUSE INVENTORY & POINTS LEDGER");
     printf(" Admin Officer : %s (%s) | Role: %s\n", admin->name, admin->id, admin->role);
-    printf(" Admin Balance : [%d Admin Points] | Total Revenue: [$%.2f]\n",
+    printf(" Admin Balance : [%d Admin Points] | Total Net Revenue: [$%.2f]\n",
            admin->admin_points, admin->total_revenue);
     printDivider('=', 95);
 
@@ -1228,7 +1238,143 @@ void manageProblemReportsUI(void) {
     }
 }
 
-/* ==================== 14. STATISTICAL REPORTS & ANALYTICS ==================== */
+/* ==================== 14. ECO-STORE CITIZEN ORDERS ==================== */
+
+void viewStorePurchasesUI(void) {
+    while (1) {
+        clearScreen();
+        printHeader("ECO-STORE CITIZEN ORDERS & DISPATCH MANAGEMENT");
+        printf(" Track and update deliveries of items purchased with citizen reward points.\n\n");
+
+        static ItemPurchase purchases[MAX_PURCHASES];
+        int count = loadPurchases(purchases, MAX_PURCHASES);
+
+        if (count == 0) {
+            printf(" No Eco-Store orders placed yet.\n");
+            pausePrompt();
+            return;
+        }
+
+        printf("%-9s | %-16s | %-18s | %-24s | %-4s | %-9s | %-16s\n",
+               "Order ID", "Date", "Citizen", "Item Purchased", "Qty", "Points", "Status");
+        printDivider('-', 105);
+
+        int totalOrders = 0;
+        int totalItems = 0;
+        int totalPoints = 0;
+        int pendingDispatch = 0;
+
+        for (int i = 0; i < count; i++) {
+            printf("%-9s | %-16.16s | %-18.18s | %-24.24s | %3d  | %4d pts  | %-16.16s\n",
+                   purchases[i].purchase_id,
+                   purchases[i].purchase_date,
+                   purchases[i].user_name,
+                   purchases[i].item_name,
+                   purchases[i].quantity,
+                   purchases[i].points_spent,
+                   purchases[i].status);
+            totalOrders++;
+            totalItems += purchases[i].quantity;
+            totalPoints += purchases[i].points_spent;
+            if (strstr(purchases[i].status, "Delivered") == NULL) {
+                pendingDispatch++;
+            }
+        }
+        printDivider('=', 105);
+        printf(" SUMMARY: %d Total Orders | %d Items | %d Points Redeemed | %d Pending Delivery\n\n",
+               totalOrders, totalItems, totalPoints, pendingDispatch);
+
+        char inputId[32];
+        getString(" Enter Order ID to inspect/update (or '0' to return): ", inputId, sizeof(inputId), true);
+        trimString(inputId);
+
+        if (strcmp(inputId, "0") == 0 || strlen(inputId) == 0) {
+            return;
+        }
+
+        ItemPurchase* selected = NULL;
+        for (int i = 0; i < count; i++) {
+            if (strcasecmp(purchases[i].purchase_id, inputId) == 0) {
+                selected = &purchases[i];
+                break;
+            }
+        }
+
+        if (!selected) {
+            printf("\n[!] Error: Order ID '%s' not found.\n", inputId);
+            pausePrompt();
+            continue;
+        }
+
+        clearScreen();
+        printHeader("ORDER DETAILS & DISPATCH UPDATE");
+        printf("  Order ID         : %s\n", selected->purchase_id);
+        printf("  Order Date       : %s\n", selected->purchase_date);
+        printf("  Citizen Name     : %s (ID: %s)\n", selected->user_name, selected->user_id);
+        printf("  Item Ordered     : %s (Item ID: %s)\n", selected->item_name, selected->item_id);
+        printf("  Quantity         : %d unit(s)\n", selected->quantity);
+        printf("  Points Deducted  : %d pts\n", selected->points_spent);
+        printf("  Delivery Address : %s\n", selected->delivery_address);
+        printf("  Current Status   : %s\n", selected->status);
+        printDivider('-', 65);
+
+        printf(" Update Dispatch Status:\n");
+        printf("   [1] Mark as 'Processing in Warehouse'\n");
+        printf("   [2] Mark as 'Dispatched for Delivery'\n");
+        printf("   [3] Mark as 'Delivered to Citizen'\n");
+        printf("   [4] Cancel Order & Refund Points to Citizen\n");
+        printf("   [5] Back to Orders List\n");
+        printDivider('-', 65);
+
+        int opt = getInt(" Select action [1-5]: ", 1, 5);
+        if (opt == 1) {
+            strcpy(selected->status, "Processing in Warehouse");
+            savePurchases(purchases, count);
+            printf("\n[SUCCESS] Status updated to 'Processing in Warehouse'.\n");
+            pausePrompt();
+        } else if (opt == 2) {
+            strcpy(selected->status, "Dispatched for Delivery");
+            savePurchases(purchases, count);
+            printf("\n[SUCCESS] Status updated to 'Dispatched for Delivery'.\n");
+            pausePrompt();
+        } else if (opt == 3) {
+            strcpy(selected->status, "Delivered to Citizen");
+            savePurchases(purchases, count);
+            printf("\n[SUCCESS] Order marked as 'Delivered to Citizen'.\n");
+            pausePrompt();
+        } else if (opt == 4) {
+            char confirm[16];
+            getString(" Are you sure you want to cancel this order and refund points? (y/n): ", confirm, sizeof(confirm), false);
+            if (confirm[0] == 'y' || confirm[0] == 'Y') {
+                /* Refund points to user */
+                User users[MAX_USERS];
+                int uCount = loadUsers(users, MAX_USERS);
+                User* u = findUserById(users, uCount, selected->user_id);
+                if (u) {
+                    u->reward_points += selected->points_spent;
+                    updateUser(u);
+                }
+
+                /* Restock item */
+                StoreItem items[MAX_STORE_ITEMS];
+                int iCount = loadStoreItems(items, MAX_STORE_ITEMS);
+                StoreItem* itm = findStoreItemById(items, iCount, selected->item_id);
+                if (itm) {
+                    itm->stock_qty += selected->quantity;
+                    updateStoreItem(itm);
+                }
+
+                strcpy(selected->status, "Cancelled & Points Refunded");
+                savePurchases(purchases, count);
+                printf("\n[SUCCESS] Order cancelled. %d points refunded to %s and stock restored!\n",
+                       selected->points_spent, selected->user_name);
+                pausePrompt();
+            }
+        }
+    }
+}
+
+/* ==================== 15. STATISTICAL REPORTS & ANALYTICS ==================== */
 
 void generateSystemReportsUI(void) {
     while (1) {
@@ -1240,10 +1386,11 @@ void generateSystemReportsUI(void) {
         printf("   [3] Field Collector Performance Report\n");
         printf("   [4] Vehicle Fleet Utilization & Load Report\n");
         printf("   [5] Admin Points & Commercial Sales Revenue Report\n");
-        printf("   [6] Return to Dashboard\n");
+        printf("   [6] Eco-Store Citizen Redemption & Item Sales Report\n");
+        printf("   [7] Return to Dashboard\n");
         printDivider('-', 65);
 
-        int choice = getInt(" Select Report [1-6]: ", 1, 6);
+        int choice = getInt(" Select Report [1-7]: ", 1, 7);
         if (choice == 1) {
             clearScreen();
             printHeader("WASTE VOLUME STATISTICS BY CATEGORY");
@@ -1346,43 +1493,141 @@ void generateSystemReportsUI(void) {
             pausePrompt();
         } else if (choice == 5) {
             clearScreen();
-            printHeader("ADMIN PORTAL POINTS & COMMERCIAL SALES REVENUE REPORT");
+            printHeader("ADMIN POINTS & COMMERCIAL SALES REVENUE REPORT");
+            printf(" Revenue Calculation Rule:\n");
+            printf("   Net Revenue = Admin Sale (Company) - User Earned Coins (Citizen Reward)\n");
+            printf("   Net revenue coins are directly credited to Admin Points and Total Revenue.\n\n");
+            printDivider('=', 105);
+
             static Admin admins[MAX_ADMINS];
             int aCount = loadAdmins(admins, MAX_ADMINS);
 
-            printf(" Administrator Recycling & Sales Performance:\n");
-            printf("%-10s | %-22s | %-20s | %-10s | %-12s\n",
-                   "Admin ID", "Officer Name", "Role", "Admin Pts", "Sales Rev");
-            printDivider('-', 84);
+            printf(" Administrator Revenue & Performance Summary:\n");
+            printf("%-10s | %-22s | %-20s | %-14s | %-14s\n",
+                   "Admin ID", "Officer Name", "Role", "Net Admin Pts", "Net Revenue ($)");
+            printDivider('-', 95);
 
             int totalAdminPts = 0;
             float totalAdminRev = 0.0f;
             for (int i = 0; i < aCount; i++) {
-                printf("%-10s | %-22.22s | %-20.20s | %-10d | $%-10.2f\n",
+                printf("%-10s | %-22.22s | %-20.20s | %-14d | $%-14.2f\n",
                        admins[i].id, admins[i].name, admins[i].role,
                        admins[i].admin_points, admins[i].total_revenue);
                 totalAdminPts += admins[i].admin_points;
                 totalAdminRev += admins[i].total_revenue;
             }
-            printDivider('-', 84);
-            printf(" TOTAL ADMIN CREDITS: %d pts | ADMIN-TRACKED REVENUE: $%.2f\n\n",
+            printDivider('-', 95);
+            printf(" TOTAL ADMIN CREDITS: %d pts | TOTAL SYSTEM NET REVENUE: $%.2f\n\n",
                    totalAdminPts, totalAdminRev);
 
             static RecyclableSale sales[MAX_SALES];
             int sCount = loadSales(sales, MAX_SALES);
-            printf(" Commercial Recyclable Sales Ledger (%d transactions):\n", sCount);
-            printf("%-10s | %-10s | %-22s | %-9s | %-18s | %-10s\n",
-                   "Sale ID", "Batch ID", "Material", "Weight", "Buyer", "Total ($)");
-            printDivider('-', 90);
-            float grandSales = 0.0f;
+
+            static WarehouseBatch batches[MAX_WAREHOUSE];
+            int bCount = loadWarehouseBatches(batches, MAX_WAREHOUSE);
+
+            static WasteRequest reqs[MAX_REQUESTS];
+            int rCount = loadRequests(reqs, MAX_REQUESTS);
+
+            printf(" Commercial Recyclable Sales & Net Revenue Ledger (%d transactions):\n", sCount);
+            printf("%-9s | %-17s | %-19s | %-12s | %-11s | %-11s | %-12s\n",
+                   "Sale ID", "Batch/Req ID", "Material & Wt", "Buyer", "Admin Sale", "User Coins", "Net Revenue");
+            printDivider('-', 105);
+
+            float totalGrossSales = 0.0f;
+            int totalUserCoins = 0;
+            float totalNetRevenue = 0.0f;
+
             for (int i = 0; i < sCount; i++) {
-                printf("%-10s | %-10s | %-22.22s | %-6.1f kg | %-18.18s | $%-9.2f\n",
-                       sales[i].id, sales[i].batch_id, sales[i].material_type,
-                       sales[i].weight_kg, sales[i].buyer_name, sales[i].total_amount);
-                grandSales += sales[i].total_amount;
+                /* Find linked warehouse batch and user request to retrieve user earned coins */
+                WarehouseBatch* batch = findWarehouseBatchByIdOrReq(batches, bCount, sales[i].batch_id);
+                int userCoins = 0;
+                char batchReqStr[32];
+                if (batch) {
+                    WasteRequest* req = findRequestById(reqs, rCount, batch->request_id);
+                    if (req && req->points_awarded > 0) {
+                        userCoins = req->points_awarded;
+                    } else if (batch->admin_points_earned > 0 && (int)sales[i].total_amount >= batch->admin_points_earned) {
+                        userCoins = (int)sales[i].total_amount - batch->admin_points_earned;
+                    }
+                    snprintf(batchReqStr, sizeof(batchReqStr), "%s/%s", batch->batch_id, batch->request_id);
+                } else {
+                    strncpy(batchReqStr, sales[i].batch_id, sizeof(batchReqStr) - 1);
+                }
+
+                float gross = sales[i].total_amount;
+                float net = gross - (float)userCoins;
+
+                char matWt[64];
+                snprintf(matWt, sizeof(matWt), "%s (%.0fkg)", 
+                         strstr(sales[i].material_type, "Plastic") ? "Plastic" :
+                         strstr(sales[i].material_type, "Paper") ? "Paper" :
+                         strstr(sales[i].material_type, "Metal") ? "Metal" :
+                         strstr(sales[i].material_type, "Glass") ? "Glass" :
+                         strstr(sales[i].material_type, "Organic") ? "Organic" : sales[i].material_type,
+                         sales[i].weight_kg);
+
+                printf("%-9s | %-17.17s | %-19.19s | %-12.12s | $%8.2f  | -%4d pts  | +$%-9.2f\n",
+                       sales[i].id,
+                       batchReqStr,
+                       matWt,
+                       sales[i].buyer_name,
+                       gross,
+                       userCoins,
+                       net);
+
+                totalGrossSales += gross;
+                totalUserCoins += userCoins;
+                totalNetRevenue += net;
             }
-            printDivider('=', 90);
-            printf(" GRAND COMMERCIAL SALES REVENUE: $%.2f\n", grandSales);
+
+            printDivider('=', 105);
+            printf(" FINANCIAL BREAKDOWN SUMMARY:\n");
+            printf("   * Total Admin Commercial Sales (Gross) : $%.2f (%.0f coins)\n",
+                   totalGrossSales, totalGrossSales);
+            printf("   * Total User Rewards Deducted (Cost)   : -%d coins ($%d.00)\n",
+                   totalUserCoins, totalUserCoins);
+            printf("   * Grand Total Net Revenue (Profit)     : +$%.2f (+%.0f coins)\n",
+                   totalNetRevenue, totalNetRevenue);
+            if (totalGrossSales > 0) {
+                printf("   * Net Revenue Profit Margin            : %.1f%%\n",
+                       (totalNetRevenue / totalGrossSales) * 100.0f);
+            }
+            printDivider('=', 105);
+            pausePrompt();
+        } else if (choice == 6) {
+            clearScreen();
+            printHeader("ECO-STORE REDEMPTION & CITIZEN REWARDS USAGE REPORT");
+            static ItemPurchase purchases[MAX_PURCHASES];
+            int pCount = loadPurchases(purchases, MAX_PURCHASES);
+
+            static StoreItem items[MAX_STORE_ITEMS];
+            int iCount = loadStoreItems(items, MAX_STORE_ITEMS);
+
+            int totalOrders = 0;
+            int totalItems = 0;
+            int totalPoints = 0;
+            for (int i = 0; i < pCount; i++) {
+                totalOrders++;
+                totalItems += purchases[i].quantity;
+                totalPoints += purchases[i].points_spent;
+            }
+
+            printf(" Eco-Store Inventory Stock Status:\n");
+            printf("%-9s | %-28s | %-16s | %-11s | %-8s\n",
+                   "Item ID", "Item Name", "Category", "Points Cost", "In Stock");
+            printDivider('-', 80);
+            for (int i = 0; i < iCount; i++) {
+                printf("%-9s | %-28.28s | %-16.16s | %4d pts   | %3d pcs\n",
+                       items[i].id, items[i].name, items[i].category,
+                       items[i].points_cost, items[i].stock_qty);
+            }
+            printDivider('=', 80);
+            printf(" Citizen Redemptions Summary:\n");
+            printf("   * Total Citizen Orders Placed  : %d orders\n", totalOrders);
+            printf("   * Total Eco-Products Delivered : %d units\n", totalItems);
+            printf("   * Total Citizen Points Spent   : %d points redeemed\n", totalPoints);
+            printDivider('=', 80);
             pausePrompt();
         } else {
             break;

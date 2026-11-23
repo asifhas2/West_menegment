@@ -1,0 +1,8 @@
+ITEM101|Stainless Steel Water Bottle|Eco Living|50|22|Durable reusable 750ml insulated stainless steel water bottle
+ITEM102|Small Household Dustbin|Waste Management|80|20|10L pedal-operated indoor waste sorting dustbin
+ITEM103|Antibacterial Liquid Handwash|Sanitation|30|48|250ml eco-friendly antiseptic foaming handwash
+ITEM104|Recycled Paper Tissue Box|Eco Hygiene|20|60|200 pulls 2-ply soft 100% recycled paper tissues
+ITEM105|Biodegradable Garbage Bags|Waste Disposal|25|40|Pack of 30 cornstarch compostable garbage trash bags
+ITEM106|Reusable Cotton Grocery Tote|Eco Living|15|80|Heavy-duty washable organic cotton shopping carry bag
+ITEM107|Protective Cleaning Gloves|Sanitation|25|35|Reusable waterproof rubber household hygiene gloves
+ITEM108|Organic Solid Dish Soap Bar|Eco Hygiene|20|44|Zero-waste plant-based grease-cutting kitchen cleaning soap

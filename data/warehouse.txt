@@ -1,1 +1,4 @@
-BAT1001|REQ1013|COL105|Recyclable - Plastic|25.00|Sold|Recycled into raw polymer pellets at Municipal Recycling Plant|SALE1008|600.00|310|ADM105|2026-11-18 13:43
+BAT1001|REQ1013|COL105|Recyclable - Plastic|25.00|Sold|Recycled into raw polymer pellets at Municipal Recycling Plant|SALE1008|600.00|350|ADM105|2026-11-18 13:43
+BAT1002|REQ1014|COL105|Recyclable - Paper & Cardboard|28.00|Sold|Pulped into recycled cardboard & paper sheets|SALE1009|952.00|728|ADM105|2026-11-18 14:28
+BAT1003|REQ1015|COL105|Recyclable - Metal / Cans|50.00|Sold|Smelted and purified into reusable metal ingots|SALE1010|750.00|250|ADM105|2026-11-24 00:53
+BAT1004|REQ1016|COL105|Electronic Waste (E-Waste)|20.00|Sold|Dismantled into recovered e-waste components & copper|SALE1011|500.00|200|ADM105|2026-11-24 01:21

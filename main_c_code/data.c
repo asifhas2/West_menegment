@@ -30,7 +30,7 @@ static bool fileExists(const char* filename) {
     return false;
 }
 
-/* Ensure all project data files exist and populate sensible mock seeds on first run */
+/* Ensure all project data files exist and populate sensible default seeds on first run */
 bool initDataFiles(void) {
     /* 1. Smart Bins */
     if (!fileExists(FILE_BINS)) {
@@ -45,94 +45,58 @@ bool initDataFiles(void) {
         }
     }
 
-    /* 2. Registered Citizens */
+    /* 2. Registered Citizens (starts clean) */
     if (!fileExists(FILE_USERS)) {
         FILE* fp = fopen(FILE_USERS, "w");
-        if (fp) {
-            fprintf(fp, "USR1001|Rahim Ahmed|user@test.com|01711223344|password123|115|2026-10-01 10:00\n");
-            fprintf(fp, "USR1002|Fatima Begum|fatima@test.com|01799887766|password123|60|2026-10-15 14:20\n");
-            fclose(fp);
-        }
+        if (fp) fclose(fp);
     }
 
-    /* 3. Waste Collection Requests across different stages */
+    /* 3. Waste Collection Requests (starts clean) */
     if (!fileExists(FILE_REQUESTS)) {
         FILE* fp = fopen(FILE_REQUESTS, "w");
-        if (fp) {
-            /* Completed with final outcome recorded */
-            fprintf(fp, "REQ1001|USR1001|Recyclable - Plastic|5.00|5.50|House 12, Road 4, Sector 7|BIN102|2026-10-05|Morning (8:00 AM - 12:00 PM)|Bottles and food containers clean|5|COL101 (Karim)|TRK-01|Recycled into polymer pellets at EcoPlast Plant|55|2026-10-04 18:20|2026-10-05 14:30\n");
-            fprintf(fp, "REQ1002|USR1001|Organic / Biodegradable|10.00|12.00|House 12, Road 4, Sector 7|BIN101|2026-10-12|Afternoon (12:00 PM - 4:00 PM)|Kitchen and garden organic waste|5|COL102 (Hasan)|TRK-03|Composted into bio-fertilizer at GreenBio Facility|60|2026-10-11 09:15|2026-10-12 16:10\n");
-
-            /* Active request en route */
-            fprintf(fp, "REQ1003|USR1001|Electronic Waste (E-Waste)|3.00|0.00|House 12, Road 4, Sector 7|BIN105|2026-11-08|Morning (8:00 AM - 12:00 PM)|Old circuit boards and cables|3|COL101 (Karim)|TRK-02|Pending Collection|0|2026-11-06 14:00|In Progress\n");
-
-            /* Pending requests awaiting admin approval */
-            fprintf(fp, "REQ1004|USR1001|Hazardous / Chemical Waste|2.00|0.00|House 12, Road 4, Sector 7|BIN104|2026-11-09|Evening (4:00 PM - 7:00 PM)|Expired household solvents|0|Unassigned|Unassigned|Awaiting Admin Review|0|2026-11-07 10:30|Pending\n");
-            fprintf(fp, "REQ1005|USR1002|Recyclable - Paper & Cardboard|15.00|0.00|Flat 4B, Green Villa, Dhanmondi|BIN103|2026-11-12|Morning (8:00 AM - 12:00 PM)|Bundles of old newspapers|1|Unassigned|Unassigned|Approved - Scheduled for Assignment|0|2026-11-08 11:00|Pending\n");
-            fclose(fp);
-        }
+        if (fp) fclose(fp);
     }
 
-    /* 4. Rewards ledger */
+    /* 4. Rewards ledger (starts clean) */
     if (!fileExists(FILE_REWARDS)) {
         FILE* fp = fopen(FILE_REWARDS, "w");
-        if (fp) {
-            fprintf(fp, "REW1001|USR1001|REQ1001|Recyclable - Plastic|5.50|55|2026-10-05 14:30\n");
-            fprintf(fp, "REW1002|USR1001|REQ1002|Organic / Biodegradable|12.00|60|2026-10-12 16:10\n");
-            fclose(fp);
-        }
+        if (fp) fclose(fp);
     }
 
-    /* 5. Citizen bin problem reports */
+    /* 5. Citizen bin problem reports (starts clean) */
     if (!fileExists(FILE_BIN_REPORTS)) {
         FILE* fp = fopen(FILE_BIN_REPORTS, "w");
-        if (fp) {
-            fprintf(fp, "REP1001|USR1001|BIN103|Block C - School & Library Area|Bin Overflowing / Excess Garbage|Lid cannot close and cardboard is spilling on footpath|Under Review|2026-10-25 11:20\n");
-            fclose(fp);
-        }
+        if (fp) fclose(fp);
     }
 
-    /* 6. Field Waste Collectors */
+    /* 6. Field Waste Collectors (starts clean) */
     if (!fileExists(FILE_COLLECTORS)) {
         FILE* fp = fopen(FILE_COLLECTORS, "w");
-        if (fp) {
-            fprintf(fp, "COL101|Karim Ullah|karim@collector.com|01811223344|collector123|TRK-01|Available|85.50|12\n");
-            fprintf(fp, "COL102|Hasan Mahmud|hasan@collector.com|01822334455|collector123|TRK-03|Available|64.00|8\n");
-            fprintf(fp, "COL103|Tariq Islam|tariq@collector.com|01833445566|collector123|TRK-02|Available|42.00|5\n");
-            fclose(fp);
-        }
+        if (fp) fclose(fp);
     }
 
     /* 7. Collection Trucks / Fleet */
     if (!fileExists(FILE_TRUCKS)) {
         FILE* fp = fopen(FILE_TRUCKS, "w");
         if (fp) {
-            fprintf(fp, "TRK-01|DHK-METRO-1122|Rahman Mia|1500.00|250.00|Available\n");
-            fprintf(fp, "TRK-02|DHK-METRO-3344|Solaiman Ali|2000.00|320.00|Available\n");
+            fprintf(fp, "TRK-01|DHK-METRO-1122|Rahman Mia|1500.00|0.00|Available\n");
+            fprintf(fp, "TRK-02|DHK-METRO-3344|Solaiman Ali|2000.00|0.00|Available\n");
             fprintf(fp, "TRK-03|DHK-METRO-5566|Jamal Hossain|1800.00|0.00|Available\n");
             fprintf(fp, "TRK-04|DHK-METRO-7788|Anwar Hossain|2500.00|0.00|Maintenance\n");
             fclose(fp);
         }
     }
 
-    /* 8. Collector Problem Reports */
+    /* 8. Collector Problem Reports (starts clean) */
     if (!fileExists(FILE_COLLECTOR_REPORTS)) {
         FILE* fp = fopen(FILE_COLLECTOR_REPORTS, "w");
-        if (fp) {
-            fprintf(fp, "CREP1001|COL101|REQ1003|Location Inaccessible|Road digging in Sector 7 delayed vehicle entry|Under Review|2026-11-06 15:30\n");
-            fclose(fp);
-        }
+        if (fp) fclose(fp);
     }
 
-    /* 9. Commercial Recyclable Sales */
+    /* 9. Commercial Recyclable Sales (starts clean) */
     if (!fileExists(FILE_SALES)) {
         FILE* fp = fopen(FILE_SALES, "w");
-        if (fp) {
-            fprintf(fp, "SALE1001|Recyclable - Plastic|500.00|EcoPlast Industries Ltd.|35.00|17500.00|2026-10-30 14:00\n");
-            fprintf(fp, "SALE1002|Recyclable - Paper & Cardboard|800.00|GreenPaper Mills|18.00|14400.00|2026-11-02 11:30\n");
-            fprintf(fp, "SALE1003|Recyclable - Metal / Cans|300.00|Bengal Metal Recyclers|75.00|22500.00|2026-11-05 16:45\n");
-            fclose(fp);
-        }
+        if (fp) fclose(fp);
     }
 
     /* 10. Municipal Administrators */
@@ -140,17 +104,36 @@ bool initDataFiles(void) {
         FILE* fp = fopen(FILE_ADMINS, "w");
         if (fp) {
             fprintf(fp, "ADM101|admin|System Administrator|01700000000|admin123|Super Admin|2026-10-01 10:00|0|0.00\n");
-            fprintf(fp, "ADM102|manager|Operations Director|01711002200|admin123|Operations Director|2026-10-05 09:30|0|0.00\n");
             fclose(fp);
         }
     }
 
-    /* 11. Admin Warehouse Inventory (Collected -> Recycled -> Sold) */
+    /* 11. Admin Warehouse Inventory */
     if (!fileExists(FILE_WAREHOUSE)) {
         FILE* fp = fopen(FILE_WAREHOUSE, "w");
+        if (fp) fclose(fp);
+    }
+
+    /* 12. Eco-Store Catalog */
+    if (!fileExists(FILE_STORE_ITEMS)) {
+        FILE* fp = fopen(FILE_STORE_ITEMS, "w");
         if (fp) {
+            fprintf(fp, "ITEM101|Stainless Steel Water Bottle|Eco Living|50|25|Durable reusable 750ml insulated stainless steel water bottle\n");
+            fprintf(fp, "ITEM102|Small Household Dustbin|Waste Management|80|20|10L pedal-operated indoor waste sorting dustbin\n");
+            fprintf(fp, "ITEM103|Antibacterial Liquid Handwash|Sanitation|30|50|250ml eco-friendly antiseptic foaming handwash\n");
+            fprintf(fp, "ITEM104|Recycled Paper Tissue Box|Eco Hygiene|20|60|200 pulls 2-ply soft 100%% recycled paper tissues\n");
+            fprintf(fp, "ITEM105|Biodegradable Garbage Bags|Waste Disposal|25|40|Pack of 30 cornstarch compostable garbage trash bags\n");
+            fprintf(fp, "ITEM106|Reusable Cotton Grocery Tote|Eco Living|15|80|Heavy-duty washable organic cotton shopping carry bag\n");
+            fprintf(fp, "ITEM107|Protective Cleaning Gloves|Sanitation|25|35|Reusable waterproof rubber household hygiene gloves\n");
+            fprintf(fp, "ITEM108|Organic Solid Dish Soap Bar|Eco Hygiene|20|45|Zero-waste plant-based grease-cutting kitchen cleaning soap\n");
             fclose(fp);
         }
+    }
+
+    /* 13. Eco-Store Purchases */
+    if (!fileExists(FILE_PURCHASES)) {
+        FILE* fp = fopen(FILE_PURCHASES, "w");
+        if (fp) fclose(fp);
     }
 
     return true;
@@ -1350,4 +1333,192 @@ void syncCollectedRequestsToWarehouse(void) {
             }
         }
     }
+}
+
+/* ==================== ECO-STORE DATA OPERATIONS ==================== */
+
+int loadStoreItems(StoreItem items[], int max_count) {
+    FILE* fp = fopen(FILE_STORE_ITEMS, "r");
+    if (!fp) return 0;
+
+    char line[512];
+    int count = 0;
+    while (fgets(line, sizeof(line), fp) && count < max_count) {
+        trimString(line);
+        if (strlen(line) == 0) continue;
+
+        char* fields[10];
+        int num_fields = splitLine(line, fields, 10, '|');
+        if (num_fields >= 6) {
+            strncpy(items[count].id, fields[0], sizeof(items[count].id) - 1);
+            strncpy(items[count].name, fields[1], sizeof(items[count].name) - 1);
+            strncpy(items[count].category, fields[2], sizeof(items[count].category) - 1);
+            items[count].points_cost = atoi(fields[3]);
+            items[count].stock_qty = atoi(fields[4]);
+            strncpy(items[count].description, fields[5], sizeof(items[count].description) - 1);
+            count++;
+        }
+    }
+    fclose(fp);
+    return count;
+}
+
+bool saveStoreItems(const StoreItem items[], int count) {
+    FILE* fp = fopen(FILE_STORE_ITEMS, "w");
+    if (!fp) return false;
+
+    for (int i = 0; i < count; i++) {
+        fprintf(fp, "%s|%s|%s|%d|%d|%s\n",
+                items[i].id,
+                items[i].name,
+                items[i].category,
+                items[i].points_cost,
+                items[i].stock_qty,
+                items[i].description);
+    }
+    fclose(fp);
+    return true;
+}
+
+bool addStoreItem(const StoreItem* item) {
+    FILE* fp = fopen(FILE_STORE_ITEMS, "a");
+    if (!fp) return false;
+
+    fprintf(fp, "%s|%s|%s|%d|%d|%s\n",
+            item->id,
+            item->name,
+            item->category,
+            item->points_cost,
+            item->stock_qty,
+            item->description);
+    fclose(fp);
+    return true;
+}
+
+bool updateStoreItem(const StoreItem* item) {
+    static StoreItem items[MAX_STORE_ITEMS];
+    int count = loadStoreItems(items, MAX_STORE_ITEMS);
+    bool found = false;
+    for (int i = 0; i < count; i++) {
+        if (strcmp(items[i].id, item->id) == 0) {
+            items[i] = *item;
+            found = true;
+            break;
+        }
+    }
+    if (found) {
+        return saveStoreItems(items, count);
+    }
+    return false;
+}
+
+StoreItem* findStoreItemById(StoreItem items[], int count, const char* id) {
+    for (int i = 0; i < count; i++) {
+        if (strcmp(items[i].id, id) == 0) {
+            return &items[i];
+        }
+    }
+    return NULL;
+}
+
+void generateNextStoreItemId(char* out_id) {
+    static StoreItem items[MAX_STORE_ITEMS];
+    int count = loadStoreItems(items, MAX_STORE_ITEMS);
+    int max_num = 100;
+    for (int i = 0; i < count; i++) {
+        if (strncmp(items[i].id, "ITEM", 4) == 0) {
+            int num = atoi(items[i].id + 4);
+            if (num > max_num) max_num = num;
+        }
+    }
+    sprintf(out_id, "ITEM%d", max_num + 1);
+}
+
+/* ==================== ITEM PURCHASES DATA OPERATIONS ==================== */
+
+int loadPurchases(ItemPurchase purchases[], int max_count) {
+    FILE* fp = fopen(FILE_PURCHASES, "r");
+    if (!fp) return 0;
+
+    char line[512];
+    int count = 0;
+    while (fgets(line, sizeof(line), fp) && count < max_count) {
+        trimString(line);
+        if (strlen(line) == 0) continue;
+
+        char* fields[12];
+        int num_fields = splitLine(line, fields, 12, '|');
+        if (num_fields >= 9) {
+            strncpy(purchases[count].purchase_id, fields[0], sizeof(purchases[count].purchase_id) - 1);
+            strncpy(purchases[count].user_id, fields[1], sizeof(purchases[count].user_id) - 1);
+            strncpy(purchases[count].user_name, fields[2], sizeof(purchases[count].user_name) - 1);
+            strncpy(purchases[count].item_id, fields[3], sizeof(purchases[count].item_id) - 1);
+            strncpy(purchases[count].item_name, fields[4], sizeof(purchases[count].item_name) - 1);
+            purchases[count].quantity = atoi(fields[5]);
+            purchases[count].points_spent = atoi(fields[6]);
+            strncpy(purchases[count].delivery_address, fields[7], sizeof(purchases[count].delivery_address) - 1);
+            strncpy(purchases[count].status, fields[8], sizeof(purchases[count].status) - 1);
+            if (num_fields >= 10) {
+                strncpy(purchases[count].purchase_date, fields[9], sizeof(purchases[count].purchase_date) - 1);
+            } else {
+                strcpy(purchases[count].purchase_date, "N/A");
+            }
+            count++;
+        }
+    }
+    fclose(fp);
+    return count;
+}
+
+bool savePurchases(const ItemPurchase purchases[], int count) {
+    FILE* fp = fopen(FILE_PURCHASES, "w");
+    if (!fp) return false;
+
+    for (int i = 0; i < count; i++) {
+        fprintf(fp, "%s|%s|%s|%s|%s|%d|%d|%s|%s|%s\n",
+                purchases[i].purchase_id,
+                purchases[i].user_id,
+                purchases[i].user_name,
+                purchases[i].item_id,
+                purchases[i].item_name,
+                purchases[i].quantity,
+                purchases[i].points_spent,
+                purchases[i].delivery_address,
+                purchases[i].status,
+                purchases[i].purchase_date);
+    }
+    fclose(fp);
+    return true;
+}
+
+bool addPurchase(const ItemPurchase* purchase) {
+    FILE* fp = fopen(FILE_PURCHASES, "a");
+    if (!fp) return false;
+
+    fprintf(fp, "%s|%s|%s|%s|%s|%d|%d|%s|%s|%s\n",
+            purchase->purchase_id,
+            purchase->user_id,
+            purchase->user_name,
+            purchase->item_id,
+            purchase->item_name,
+            purchase->quantity,
+            purchase->points_spent,
+            purchase->delivery_address,
+            purchase->status,
+            purchase->purchase_date);
+    fclose(fp);
+    return true;
+}
+
+void generateNextPurchaseId(char* out_id) {
+    static ItemPurchase purchases[MAX_PURCHASES];
+    int count = loadPurchases(purchases, MAX_PURCHASES);
+    int max_num = 1000;
+    for (int i = 0; i < count; i++) {
+        if (strncmp(purchases[i].purchase_id, "PUR", 3) == 0) {
+            int num = atoi(purchases[i].purchase_id + 3);
+            if (num > max_num) max_num = num;
+        }
+    }
+    sprintf(out_id, "PUR%d", max_num + 1);
 }

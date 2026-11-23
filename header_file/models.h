@@ -152,4 +152,28 @@ typedef struct {
     char updated_at[32];        /* Last update timestamp */
 } WarehouseBatch;
 
+/* Eco-Store items available for points redemption */
+typedef struct {
+    char id[16];                /* e.g., "ITEM101" */
+    char name[64];              /* e.g., "Stainless Steel Water Bottle" */
+    char category[32];          /* e.g., "Eco Living", "Waste Management", "Sanitation" */
+    int points_cost;            /* Cost in reward points */
+    int stock_qty;              /* Available inventory stock */
+    char description[128];      /* Product description */
+} StoreItem;
+
+/* Citizen store purchase / redemption record */
+typedef struct {
+    char purchase_id[16];       /* e.g., "PUR1001" */
+    char user_id[16];           /* Citizen user ID */
+    char user_name[64];         /* Citizen name */
+    char item_id[16];           /* Store item ID */
+    char item_name[64];         /* Store item name */
+    int quantity;               /* Quantity ordered */
+    int points_spent;           /* Total points spent */
+    char delivery_address[128]; /* Delivery location / address */
+    char status[32];            /* "Confirmed", "Dispatched", "Delivered" */
+    char purchase_date[32];     /* Date and time of purchase */
+} ItemPurchase;
+
 #endif /* MODELS_H */

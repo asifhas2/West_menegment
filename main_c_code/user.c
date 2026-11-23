@@ -201,18 +201,20 @@ void showUserDashboard(User* user) {
                user->reward_points, activeUserReqs, completedUserReqs);
         printDivider('=', 70);
         printf(" Main Operations:\n");
-        printf("   [1] Submit New Waste Collection Request\n");
-        printf("   [2] Track Active Requests & View Status\n");
-        printf("   [3] View Request Details by ID\n");
-        printf("   [4] Report a Bin Problem (Full/Damaged/Leak)\n");
-        printf("   [5] View Collection History\n");
-        printf("   [6] View Reward Points & History\n");
-        printf("   [7] View Final Waste Outcomes & Transparency Trail\n");
-        printf("   [8] View My Profile Information\n");
-        printf("   [9] Logout to Citizen Menu\n");
+        printf("   [1]  Submit New Waste Collection Request\n");
+        printf("   [2]  Track Active Requests & View Status\n");
+        printf("   [3]  View Request Details by ID\n");
+        printf("   [4]  Report a Bin Problem (Full/Damaged/Leak)\n");
+        printf("   [5]  View Collection History\n");
+        printf("   [6]  View Reward Points & History\n");
+        printf("   [7]  Eco-Store: Redeem Points for Items (Water Bottle, Dustbin, etc.)\n");
+        printf("   [8]  View My Eco-Store Purchase History\n");
+        printf("   [9]  View Final Waste Outcomes & Transparency Trail\n");
+        printf("   [10] View My Profile Information\n");
+        printf("   [11] Logout to Citizen Menu\n");
         printDivider('-', 70);
 
-        int choice = getInt(" Select an action [1-9]: ", 1, 9);
+        int choice = getInt(" Select an action [1-11]: ", 1, 11);
         switch (choice) {
             case 1:
                 submitWasteRequestUI(user);
@@ -233,12 +235,18 @@ void showUserDashboard(User* user) {
                 viewRewardSummaryUI(user);
                 break;
             case 7:
-                viewWasteOutcomeTransparencyUI(user);
+                redeemPointsUI(user);
                 break;
             case 8:
-                viewUserProfileUI(user);
+                viewPurchaseHistoryUI(user);
                 break;
             case 9:
+                viewWasteOutcomeTransparencyUI(user);
+                break;
+            case 10:
+                viewUserProfileUI(user);
+                break;
+            case 11:
                 return;
         }
     }
@@ -599,7 +607,9 @@ void viewRewardSummaryUI(const User* user) {
     printf("  * Paper & Cardboard           : 8 points per kg\n");
     printf("  * Electronic Waste            : 15 points per kg\n");
     printf("  * Chemical / Hazardous        : 20 points per kg\n");
-    printf(" Points can be redeemed for municipal utility credits or tax rebates.\n");
+    printf("\n [ECO-STORE] You currently have %d Reward Points available!\n", user->reward_points);
+    printf(" Use Option [7] in the main menu to redeem points for water bottles, small dustbins,\n");
+    printf(" liquid handwash, tissue boxes, compostable bags, and more!\n");
 
     pausePrompt();
 }
@@ -648,5 +658,236 @@ void viewUserProfileUI(const User* user) {
     printf("  Reward Points    : %d pts\n", user->reward_points);
     printf("  Member Since     : %s\n", user->created_at);
     printDivider('-', 70);
+    pausePrompt();
+}
+
+/* ==================== ECO-STORE REDEMPTION ==================== */
+
+void redeemPointsUI(User* user) {
+    while (1) {
+        /* Refresh user data */
+        User currentUsers[MAX_USERS];
+        int uCount = loadUsers(currentUsers, MAX_USERS);
+        User* freshUser = findUserById(currentUsers, uCount, user->id);
+        if (freshUser) {
+            *user = *freshUser;
+        }
+
+        clearScreen();
+        printHeader("ECO-REWARDS REDEMPTION STORE");
+        printf(" Welcome, %s!\n", user->name);
+        printf(" Your Current Balance: [%d Reward Points]\n\n", user->reward_points);
+        printf(" Use your earned recycling points to purchase high-quality eco-friendly items!\n");
+        printDivider('=', 85);
+
+        static StoreItem items[MAX_STORE_ITEMS];
+        int itemCount = loadStoreItems(items, MAX_STORE_ITEMS);
+
+        if (itemCount == 0) {
+            printf(" Store catalog is currently empty. Please check back later!\n");
+            pausePrompt();
+            return;
+        }
+
+        printf("%-8s | %-28s | %-16s | %-12s | %-10s\n",
+               "Item ID", "Product Name", "Category", "Points Cost", "In Stock");
+        printDivider('-', 85);
+
+        for (int i = 0; i < itemCount; i++) {
+            char stockText[32];
+            if (items[i].stock_qty > 0) {
+                sprintf(stockText, "%d pcs", items[i].stock_qty);
+            } else {
+                strcpy(stockText, "OUT OF STOCK");
+            }
+            printf("%-8s | %-28.28s | %-16.16s | %3d pts      | %-10s\n",
+                   items[i].id,
+                   items[i].name,
+                   items[i].category,
+                   items[i].points_cost,
+                   stockText);
+        }
+        printDivider('=', 85);
+
+        char inputId[32];
+        getString("\n Enter Item ID to purchase (e.g. ITEM101) or '0' to return: ", inputId, sizeof(inputId), true);
+        trimString(inputId);
+
+        if (strcmp(inputId, "0") == 0 || strlen(inputId) == 0) {
+            return;
+        }
+
+        /* Case-insensitive matching for convenience */
+        StoreItem* selected = NULL;
+        for (int i = 0; i < itemCount; i++) {
+            if (strcasecmp(items[i].id, inputId) == 0) {
+                selected = &items[i];
+                break;
+            }
+        }
+
+        if (!selected) {
+            printf("\n[!] Error: Item with ID '%s' not found in catalog!\n", inputId);
+            pausePrompt();
+            continue;
+        }
+
+        if (selected->stock_qty <= 0) {
+            printf("\n[!] Sorry, '%s' is currently OUT OF STOCK!\n", selected->name);
+            printf(" Please select another item or check back later.\n");
+            pausePrompt();
+            continue;
+        }
+
+        printf("\n Selected Product Details:\n");
+        printf("   * Name       : %s\n", selected->name);
+        printf("   * Category   : %s\n", selected->category);
+        printf("   * Description: %s\n", selected->description);
+        printf("   * Price      : %d points per unit\n", selected->points_cost);
+        printf("   * Available  : %d unit(s) in stock\n", selected->stock_qty);
+        printDivider('-', 65);
+
+        int maxAffordable = user->reward_points / selected->points_cost;
+        if (maxAffordable < 1) {
+            printf("\n[!] Insufficient Points! You have %d pts, but 1 unit costs %d pts.\n",
+                   user->reward_points, selected->points_cost);
+            printf(" Need %d more points. Keep recycling to earn more rewards!\n",
+                   selected->points_cost - user->reward_points);
+            pausePrompt();
+            continue;
+        }
+
+        int maxQty = selected->stock_qty < maxAffordable ? selected->stock_qty : maxAffordable;
+        printf(" Based on your points (%d pts), you can purchase up to %d unit(s).\n",
+               user->reward_points, maxQty);
+
+        int qty = getInt(" Enter quantity to redeem [1 to max, or 0 to cancel]: ", 0, selected->stock_qty);
+        if (qty <= 0) {
+            printf(" Purchase cancelled.\n");
+            pausePrompt();
+            continue;
+        }
+
+        int totalPoints = selected->points_cost * qty;
+        if (totalPoints > user->reward_points) {
+            printf("\n[!] Error: Insufficient points! %d unit(s) require %d pts, but you have %d pts.\n",
+                   qty, totalPoints, user->reward_points);
+            pausePrompt();
+            continue;
+        }
+
+        char address[128];
+        getString(" Enter delivery address / area (e.g., House 12, Road 4): ", address, sizeof(address), true);
+        trimString(address);
+        if (strlen(address) == 0) {
+            strcpy(address, "Customer Pickup / Default Area");
+        }
+
+        clearScreen();
+        printHeader("CONFIRM ECO-STORE PURCHASE");
+        printf(" Please review your order details before confirming:\n\n");
+        printf("   Item to Purchase  : %s (%s)\n", selected->name, selected->id);
+        printf("   Category          : %s\n", selected->category);
+        printf("   Quantity          : %d unit(s)\n", qty);
+        printf("   Points per Unit   : %d pts\n", selected->points_cost);
+        printf("   Total Cost        : %d pts\n", totalPoints);
+        printf("   Current Balance   : %d pts\n", user->reward_points);
+        printf("   Remaining Balance : %d pts\n", user->reward_points - totalPoints);
+        printf("   Delivery Address  : %s\n", address);
+        printf("   Recipient Name    : %s\n", user->name);
+        printf("   Contact Phone     : %s\n", user->phone);
+        printDivider('=', 70);
+
+        char confirm[16];
+        getString(" Confirm this redemption using your reward points? (y/n): ", confirm, sizeof(confirm), false);
+        if (confirm[0] != 'y' && confirm[0] != 'Y') {
+            printf("\n Purchase cancelled. No points were deducted.\n");
+            pausePrompt();
+            continue;
+        }
+
+        /* 1. Deduct points from user */
+        user->reward_points -= totalPoints;
+        updateUser(user);
+
+        /* 2. Deduct item inventory stock */
+        selected->stock_qty -= qty;
+        updateStoreItem(selected);
+
+        /* 3. Record purchase in purchases ledger */
+        ItemPurchase purchase;
+        memset(&purchase, 0, sizeof(purchase));
+        generateNextPurchaseId(purchase.purchase_id);
+        strncpy(purchase.user_id, user->id, sizeof(purchase.user_id) - 1);
+        strncpy(purchase.user_name, user->name, sizeof(purchase.user_name) - 1);
+        strncpy(purchase.item_id, selected->id, sizeof(purchase.item_id) - 1);
+        strncpy(purchase.item_name, selected->name, sizeof(purchase.item_name) - 1);
+        purchase.quantity = qty;
+        purchase.points_spent = totalPoints;
+        strncpy(purchase.delivery_address, address, sizeof(purchase.delivery_address) - 1);
+        strcpy(purchase.status, "Confirmed - In Dispatch");
+        getCurrentTimestamp(purchase.purchase_date, sizeof(purchase.purchase_date));
+
+        addPurchase(&purchase);
+
+        /* 4. Display Receipt */
+        clearScreen();
+        printHeader("PURCHASE & REDEMPTION RECEIPT");
+        printf(" [SUCCESS] Congratulations! Your eco-reward redemption was successful!\n\n");
+        printf("   Order ID         : %s\n", purchase.purchase_id);
+        printf("   Product          : %s (x%d)\n", purchase.item_name, purchase.quantity);
+        printf("   Points Deducted  : -%d pts\n", purchase.points_spent);
+        printf("   New Balance      : %d pts\n", user->reward_points);
+        printf("   Delivery Location: %s\n", purchase.delivery_address);
+        printf("   Order Date       : %s\n", purchase.purchase_date);
+        printf("   Status           : %s\n", purchase.status);
+        printDivider('-', 70);
+        printf(" Thank you for recycling with us and keeping our city clean and green!\n");
+        pausePrompt();
+    }
+}
+
+/* ==================== VIEW PURCHASE HISTORY ==================== */
+
+void viewPurchaseHistoryUI(const User* user) {
+    clearScreen();
+    printHeader("MY ECO-STORE REDEMPTION & PURCHASE HISTORY");
+    printf(" Citizen: %s (ID: %s) | Available Points: %d pts\n\n",
+           user->name, user->id, user->reward_points);
+
+    static ItemPurchase purchases[MAX_PURCHASES];
+    int count = loadPurchases(purchases, MAX_PURCHASES);
+    int userPurchases = 0;
+    int totalItems = 0;
+    int totalPointsSpent = 0;
+
+    printf("%-10s | %-16s | %-26s | %-4s | %-10s | %-16s\n",
+           "Order ID", "Date", "Item Purchased", "Qty", "Points", "Status");
+    printDivider('-', 90);
+
+    for (int i = 0; i < count; i++) {
+        if (strcmp(purchases[i].user_id, user->id) == 0) {
+            printf("%-10s | %-16.16s | %-26.26s | %3d  | %4d pts   | %-16.16s\n",
+                   purchases[i].purchase_id,
+                   purchases[i].purchase_date,
+                   purchases[i].item_name,
+                   purchases[i].quantity,
+                   purchases[i].points_spent,
+                   purchases[i].status);
+            userPurchases++;
+            totalItems += purchases[i].quantity;
+            totalPointsSpent += purchases[i].points_spent;
+        }
+    }
+
+    if (userPurchases == 0) {
+        printf(" You have not redeemed any items from the Eco-Store yet.\n");
+        printf(" Earn reward points by submitting waste for collection and spend them in the store!\n");
+    } else {
+        printDivider('-', 90);
+        printf(" TOTALS: %d Orders | %d Items Received | %d Total Points Spent\n",
+               userPurchases, totalItems, totalPointsSpent);
+    }
+
     pausePrompt();
 }

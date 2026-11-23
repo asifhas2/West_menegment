@@ -24,6 +24,7 @@ void manageProcessingRecordsUI(Admin* admin);
 void recordRecyclableSaleUI(Admin* admin);
 void viewAdminWarehouseUI(const Admin* admin);
 void viewTransparencyTrailUI(void);
+void viewStorePurchasesUI(void);
 void manageProblemReportsUI(void);
 void generateSystemReportsUI(void);
 

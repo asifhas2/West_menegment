@@ -20,6 +20,8 @@
 #define MAX_SALES 500
 #define MAX_ADMINS 50
 #define MAX_WAREHOUSE 1000
+#define MAX_STORE_ITEMS 100
+#define MAX_PURCHASES 1000
 
 /* Data file paths for system persistence */
 #define FILE_USERS "data/users.txt"
@@ -33,5 +35,7 @@
 #define FILE_SALES "data/sales.txt"
 #define FILE_ADMINS "data/admins.txt"
 #define FILE_WAREHOUSE "data/warehouse.txt"
+#define FILE_STORE_ITEMS "data/store_items.txt"
+#define FILE_PURCHASES "data/purchases.txt"
 
 #endif /* COMMON_H */
