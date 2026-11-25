@@ -5,4 +5,4 @@ ITEM104|Recycled Paper Tissue Box|Eco Hygiene|20|60|200 pulls 2-ply soft 100% re
 ITEM105|Biodegradable Garbage Bags|Waste Disposal|25|40|Pack of 30 cornstarch compostable garbage trash bags
 ITEM106|Reusable Cotton Grocery Tote|Eco Living|15|80|Heavy-duty washable organic cotton shopping carry bag
 ITEM107|Protective Cleaning Gloves|Sanitation|25|35|Reusable waterproof rubber household hygiene gloves
-ITEM108|Organic Solid Dish Soap Bar|Eco Hygiene|20|44|Zero-waste plant-based grease-cutting kitchen cleaning soap
+ITEM108|Organic Solid Dish Soap Bar|Eco Hygiene|20|43|Zero-waste plant-based grease-cutting kitchen cleaning soap

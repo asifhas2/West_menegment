@@ -45,6 +45,15 @@ The system connects three primary municipal actors through persistent file stora
 - **Entity Management**: CRUD operations for citizens, public smart bins, collectors, and trucks.
 - **Incident Management**: Review and resolve problem reports from both citizens and collectors.
 - **Statistical Analytics & Reports**: Material volume breakdown, citizen rewards ledger, collector rankings, fleet load reports, Admin Points & Commercial Sales Net Revenue report, and Eco-Store Redemption report.
+- **AI Environmental & Waste Management Assistant (EcoBot)**: Access municipal AI capabilities directly from the Admin console.
+
+### 4. AI Environmental & Waste Assistant (EcoBot - Local Qwen 1.7B)
+- **Offline & Private AI Inference**: Powered by `llama.cpp` and `models/Qwen3-1.7B-Q4_K_M.gguf` stored locally in the `AI/` directory.
+- **Custom System Prompt**: Initialized with municipal domain knowledge (`AI/system_prompt.txt`), covering sorting procedures for all 7 waste categories, point calculation rules, store items, and chemical waste hazard protocols.
+- **Interactive Live Chat Mode**: Open-ended back-and-forth dialogue with the AI; supports clean exit with `/exit` returning directly to the C console.
+- **Single Question & Answer Mode**: Quickly ask an ad-hoc question from the console without starting a full session (uses prompt buffer `AI/user_prompt.txt` to eliminate command-line character escape glitches).
+- **Quick-Access Municipal Waste Guide**: Instant offline reference answers for common waste segregation queries.
+- **Diagnostics & Status**: Verifies local binary and model weights paths and confirms runtime health.
 
 ---
 
@@ -56,7 +65,7 @@ build.bat
 ```
 Or directly with GCC:
 ```cmd
-gcc -Wall -Wextra -Wl,--stack,16777216 -Iheader_file main_c_code/main.c main_c_code/user.c main_c_code/collector.c main_c_code/admin.c main_c_code/data.c main_c_code/utils.c -o waste_management.exe
+gcc -Wall -Wextra -Wl,--stack,16777216 -Iheader_file main_c_code/main.c main_c_code/user.c main_c_code/collector.c main_c_code/admin.c main_c_code/ai_assistant.c main_c_code/data.c main_c_code/utils.c -o waste_management.exe
 ```
 
 ### Run
@@ -108,6 +117,7 @@ West_menegment_v3/
 ├── README.md                  # System overview and manual
 ├── header_file/               # Header files (.h)
 │   ├── admin.h                # Admin portal interface
+│   ├── ai_assistant.h         # Local AI assistant interface (Qwen 1.7B / llama.cpp)
 │   ├── collector.h            # Collector portal interface
 │   ├── common.h               # Core definitions, limits, and file paths
 │   ├── data.h                 # File persistence declarations
@@ -116,11 +126,18 @@ West_menegment_v3/
 │   └── utils.h                # Input validation, screen handling, UI formatters
 ├── main_c_code/               # Source files (.c)
 │   ├── admin.c                # Admin management, approval, fleet, reports
+│   ├── ai_assistant.c         # AI assistant integration (chat, single question, diagnostics)
 │   ├── collector.c            # Field operations, weigh-in, reward deposits
 │   ├── data.c                 # File I/O operations and database initialization
 │   ├── main.c                 # Main menu and portal routing
 │   ├── user.c                 # Citizen portal, request submission, tracking
 │   └── utils.c                # Safe fgets input, screen handling, progress bars
+├── AI/                        # Local AI Model & llama.cpp Environment
+│   ├── system_prompt.txt      # Customized domain system prompt for waste management
+│   ├── user_prompt.txt        # Safe temporary buffer for user prompt queries
+│   └── llama.cpp/             # Compiled llama.cpp runtime
+│       ├── build/bin/         # llama-cli.exe executable
+│       └── models/            # Qwen3-1.7B-Q4_K_M.gguf quantized model
 └── data/                      # Persistent flat files
     ├── admins.txt             # Registered municipal administrator accounts
     ├── bin_reports.txt        # Public bin reports

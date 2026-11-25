@@ -1,7 +1,7 @@
 #include "admin.h"
 #include "data.h"
 #include "utils.h"
-
+#include "ai_assistant.h"
 /* Municipal staff authorization passkey for registering new admin profiles */
 #define MUNICIPAL_MASTER_KEY "admin123"
 
@@ -221,11 +221,12 @@ void showAdminDashboard(Admin* admin) {
         printf("   [12] Manage Vehicle Fleet (Trucks)\n");
         printf("   [13] Manage Problem Reports (Citizen & Collector)\n");
         printf("   [14] Eco-Store Orders & Citizen Redemptions (Dispatch Management)\n");
-        printf("   [15] Statistical Reports & Performance Analytics\n");
-        printf("   [16] Admin Logout\n");
+        printf("   [15] AI Waste & Environmental Assistant (EcoBot)\n");
+        printf("   [16] Statistical Reports & Performance Analytics\n");
+        printf("   [17] Admin Logout\n");
         printDivider('-', 74);
 
-        int choice = getInt(" Select an action [1-16]: ", 1, 16);
+        int choice = getInt(" Select an action [1-17]: ", 1, 17);
         switch (choice) {
             case 1:  manageRequestsUI(); break;
             case 2:  approveOrRejectRequestUI(); break;
@@ -241,8 +242,9 @@ void showAdminDashboard(Admin* admin) {
             case 12: manageTrucksUI(); break;
             case 13: manageProblemReportsUI(); break;
             case 14: viewStorePurchasesUI(); break;
-            case 15: generateSystemReportsUI(); break;
-            case 16: return;
+            case 15: handleAiAssistantModule(); break;
+            case 16: generateSystemReportsUI(); break;
+            case 17: return;
         }
     }
 }

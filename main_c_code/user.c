@@ -1,6 +1,8 @@
 #include "user.h"
 #include "data.h"
 #include "utils.h"
+#include "ai_assistant.h"
+
 
 /* Standard categories for residential and commercial waste */
 static const char* WASTE_CATEGORIES[] = {
@@ -209,12 +211,13 @@ void showUserDashboard(User* user) {
         printf("   [6]  View Reward Points & History\n");
         printf("   [7]  Eco-Store: Redeem Points for Items (Water Bottle, Dustbin, etc.)\n");
         printf("   [8]  View My Eco-Store Purchase History\n");
-        printf("   [9]  View Final Waste Outcomes & Transparency Trail\n");
-        printf("   [10] View My Profile Information\n");
-        printf("   [11] Logout to Citizen Menu\n");
+        printf("   [9]  Ask AI Waste Assistant (EcoBot Sorting & Recycling Help)\n");
+        printf("   [10] View Final Waste Outcomes & Transparency Trail\n");
+        printf("   [11] View My Profile Information\n");
+        printf("   [12] Logout to Citizen Menu\n");
         printDivider('-', 70);
 
-        int choice = getInt(" Select an action [1-11]: ", 1, 11);
+        int choice = getInt(" Select an action [1-12]: ", 1, 12);
         switch (choice) {
             case 1:
                 submitWasteRequestUI(user);
@@ -241,12 +244,15 @@ void showUserDashboard(User* user) {
                 viewPurchaseHistoryUI(user);
                 break;
             case 9:
-                viewWasteOutcomeTransparencyUI(user);
+                handleAiAssistantModule();
                 break;
             case 10:
-                viewUserProfileUI(user);
+                viewWasteOutcomeTransparencyUI(user);
                 break;
             case 11:
+                viewUserProfileUI(user);
+                break;
+            case 12:
                 return;
         }
     }

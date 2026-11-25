@@ -4,6 +4,7 @@
 #include "user.h"
 #include "collector.h"
 #include "admin.h"
+#include "ai_assistant.h"
 
 static void showSystemArchitecture(void) {
     clearScreen();
@@ -48,11 +49,12 @@ int main(void) {
         printf("   [1] Citizen / User Portal\n");
         printf("   [2] Waste Collector Portal\n");
         printf("   [3] Municipal Admin Portal\n");
-        printf("   [4] System Architecture & Guide\n");
-        printf("   [5] Exit System\n");
+        printf("   [4] Ask AI Waste Assistant (EcoBot - Qwen 1.7B)\n");
+        printf("   [5] System Architecture & Guide\n");
+        printf("   [6] Exit System\n");
         printDivider('=', 70);
 
-        int choice = getInt(" Select Actor [1-5]: ", 1, 5);
+        int choice = getInt(" Select Option [1-6]: ", 1, 6);
         switch (choice) {
             case 1:
                 handleUserModule();
@@ -64,9 +66,12 @@ int main(void) {
                 handleAdminModule();
                 break;
             case 4:
-                showSystemArchitecture();
+                handleAiAssistantModule();
                 break;
             case 5:
+                showSystemArchitecture();
+                break;
+            case 6:
                 clearScreen();
                 printHeader("THANK YOU FOR USING SMART WASTE MANAGEMENT SYSTEM");
                 printf(" Protecting our environment through transparent recycling and disposal.\n");
